@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Electronic Medical Records - Medicare HMS</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <div id="sidebar-container"></div>
+
+        <div class="main-wrapper">
+            <header class="top-navbar">
+                <div class="navbar-title">Electronic Medical Records (EMR)</div>
+                <div class="navbar-actions">
+                    <button id="new-emr-btn" class="btn-primary-custom btn-sm-custom" onclick="openEmrModal()">+ New Clinical Record</button>
+                </div>
+            </header>
+
+            <main class="content-body">
+                <div class="custom-card">
+                    <div class="card-header-flex">
+                        <div>
+                            <span class="card-title">Patient Consultation History & Diagnoses</span>
+                            <span style="font-size:12px; color:#64748b; margin-left:8px;">Authorized medical personnel only</span>
+                        </div>
+                    </div>
+
+                    <div id="emr-list-container" style="padding: 20px; display: flex; flex-direction: column; gap: 20px;">
+                        <p style="text-align:center; color:#64748b; padding:20px;">Loading clinical records...</p>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- New EMR Record Modal (Doctor/Admin) -->
+    <div id="newEmrModal" class="modal-overlay">
+        <div class="modal-box" style="max-width: 650px;">
+            <div class="modal-header">
+                <h3>Create Electronic Medical Record</h3>
+                <button class="modal-close" onclick="closeModal('newEmrModal')">&times;</button>
+            </div>
+            <form id="newEmrForm">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="form-label">Patient *</label>
+                        <select id="nemr-patient" class="form-control-custom" required>
+                            <option value="">Select Patient</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" id="nemr-doctor-group">
+                        <label class="form-label">Attending Doctor *</label>
+                        <select id="nemr-doctor" class="form-control-custom" required>
+                            <option value="">Select Doctor</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Clinical Diagnosis *</label>
+                        <input type="text" id="nemr-diag" class="form-control-custom" placeholder="e.g. Type 2 Diabetes Mellitus, Acute Gastritis" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Consultation Notes & Clinical Findings</label>
+                        <textarea id="nemr-notes" class="form-control-custom" rows="3" placeholder="Symptoms, diagnostic vitals, lab test orders, medical observations..."></textarea>
+                    </div>
+
+                    <h4 style="font-size: 13px; text-transform: uppercase; color: #64748b; margin: 15px 0 10px; border-top: 1px solid #e2e8f0; padding-top: 10px;">
+                        Prescribed Medication
+                    </h4>
+                    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px;">
+                        <div class="form-group">
+                            <label class="form-label">Medicine</label>
+                            <input type="text" id="nemr-med" class="form-control-custom" placeholder="e.g. Metformin 500mg">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Dosage</label>
+                            <input type="text" id="nemr-dosage" class="form-control-custom" placeholder="1 Tablet" value="1 Tablet">
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div class="form-group">
+                            <label class="form-label">Frequency</label>
+                            <input type="text" id="nemr-freq" class="form-control-custom" placeholder="Once daily" value="Twice daily after food">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Duration</label>
+                            <input type="text" id="nemr-dur" class="form-control-custom" placeholder="30 Days" value="14 Days">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary-custom" onclick="closeModal('newEmrModal')">Cancel</button>
+                    <button type="submit" class="btn-primary-custom">Save Medical Record</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        let currentUser = null;
+
+        function openModal(id) { document.getElementById(id).classList.add("active"); }
+        function closeModal(id) { document.getElementById(id).classList.remove("active"); }
+
+        async function initEmr() {
+            currentUser = await Auth.checkAuth(["admin", "doctor", "receptionist", "patient"]);
+            if (!currentUser) return;
+            Auth.renderNavigation("records");
+
+            if (currentUser.role !== "admin" && currentUser.role !== "doctor") {
+                document.getElementById("new-emr-btn").style.display = "none";
+            }
+
+            await loadEmrRecords();
+            if (currentUser.role === "admin" || currentUser.role === "doctor") {
+                await loadDropdowns();
+            }
+        }
+
+        async function loadDropdowns() {
+            try {
+                const [pRes, dRes] = await Promise.all([
+                    API.get("/patients"),
+                    API.get("/doctors?status=active")
+                ]);
+
+                const pSel = document.getElementById("nemr-patient");
+                pSel.innerHTML = '<option value="">Select Patient</option>' + (pRes.data || []).map(p => `
+                    <option value="${p.id}">${p.full_name} (${p.patient_code})</option>
+                `).join("");
+
+                const dSel = document.getElementById("nemr-doctor");
+                dSel.innerHTML = '<option value="">Select Doctor</option>' + (dRes.data || []).map(d => `
+                    <option value="${d.id}">${d.full_name} (${d.department_name})</option>
+                `).join("");
+
+                if (currentUser.role === "doctor" && currentUser.doctor_id) {
+                    dSel.value = currentUser.doctor_id;
+                    document.getElementById("nemr-doctor-group").style.display = "none";
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function loadEmrRecords() {
+            try {
+                const res = await API.get("/medical-records");
+                const list = res.data || [];
+                const container = document.getElementById("emr-list-container");
+
+                if (list.length === 0) {
+                    container.innerHTML = `<p style="text-align:center; color:#64748b; padding:30px;">No medical records found.</p>`;
+                    return;
+                }
+
+                container.innerHTML = list.map(r => `
+                    <div class="custom-card" style="margin-bottom:0; padding:22px; border-left:4px solid #1a56db;">
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px; margin-bottom:12px;">
+                            <div>
+                                <h3 style="font-size:17px; color:#0f172a; margin-bottom:4px;">${r.diagnosis}</h3>
+                                <div style="font-size:13px; color:#475569;">
+                                    Patient: <strong>${r.patient_name}</strong> (${r.patient_code}) •
+                                    Doctor: <strong>${r.doctor_name}</strong> (${r.department_name})
+                                </div>
+                            </div>
+                            <div style="text-align:right; font-size:12px; color:#64748b;">
+                                📅 Recorded: ${r.created_at}
+                            </div>
+                        </div>
+
+                        <div style="background:#f8fafc; padding:14px; border-radius:8px; font-size:13px; color:#334155; line-height:1.6; margin-bottom:15px;">
+                            <strong>Consultation Notes:</strong><br>
+                            ${r.consultation_notes || 'No notes provided.'}
+                        </div>
+
+                        ${r.prescriptions && r.prescriptions.length > 0 ? `
+                            <div style="margin-top:10px;">
+                                <h5 style="font-size:12px; text-transform:uppercase; color:#64748b; margin-bottom:6px;">Prescribed Medications:</h5>
+                                <div style="display:flex; flex-wrap:wrap; gap:8px;">
+                                    ${r.prescriptions.map(p => `
+                                        <div style="background:#e1effe; color:#1e429f; padding:6px 12px; border-radius:6px; font-size:12px;">
+                                            💊 <strong>${p.medicine_name}</strong> - ${p.dosage} • ${p.frequency} (${p.duration})
+                                        </div>
+                                    `).join("")}
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                `).join("");
+            } catch (err) {
+                showToast("Failed to load records: " + err.message, "error");
+            }
+        }
+
+        function openEmrModal() {
+            openModal("newEmrModal");
+        }
+
+        document.getElementById("newEmrForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const patientId = parseInt(document.getElementById("nemr-patient").value);
+            const doctorId = currentUser.role === "doctor" && currentUser.doctor_id ?
+                currentUser.doctor_id : parseInt(document.getElementById("nemr-doctor").value);
+            const diag = document.getElementById("nemr-diag").value.trim();
+            const notes = document.getElementById("nemr-notes").value.trim();
+            const med = document.getElementById("nemr-med").value.trim();
+
+            const payload = {
+                patient_id: patientId,
+                doctor_id: doctorId,
+                diagnosis: diag,
+                consultation_notes: notes,
+                prescriptions: []
+            };
+
+            if (med) {
+                payload.prescriptions.push({
+                    medicine_name: med,
+                    dosage: document.getElementById("nemr-dosage").value.trim(),
+                    frequency: document.getElementById("nemr-freq").value.trim(),
+                    duration: document.getElementById("nemr-dur").value.trim(),
+                    instructions: "As prescribed"
+                });
+            }
+
+            try {
+                await API.post("/medical-records", payload);
+                showToast("Clinical record created successfully!", "success");
+                closeModal("newEmrModal");
+                loadEmrRecords();
+            } catch (err) {
+                showToast(err.message, "error");
+            }
+        });
+
+        initEmr();
+    </script>
+</body>
+</html>
+

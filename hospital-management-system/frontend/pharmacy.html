@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pharmacy Inventory - Medicare HMS</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <div id="sidebar-container"></div>
+
+        <div class="main-wrapper">
+            <header class="top-navbar">
+                <div class="navbar-title">Hospital Pharmacy & Medicine Stock</div>
+                <div class="navbar-actions">
+                    <button id="add-med-btn" class="btn-primary-custom btn-sm-custom" onclick="openAddMedModal()">+ Add Medicine</button>
+                </div>
+            </header>
+
+            <main class="content-body">
+                <div class="custom-card">
+                    <div class="card-header-flex">
+                        <div>
+                            <span class="card-title">Pharmacy Stock Catalog</span>
+                        </div>
+                        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                            <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: #dc2626; cursor: pointer;">
+                                <input type="checkbox" id="low-stock-check" onchange="loadMedicines()"> Show Low Stock Only
+                            </label>
+                            <input type="text" id="med-search" class="form-control-custom" style="width: 220px; font-size: 13px;" placeholder="Search medicines..." oninput="handleSearch()">
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="custom-table">
+                            <thead>
+                                <tr>
+                                    <th>Medicine Name</th>
+                                    <th>Category</th>
+                                    <th>Available Qty</th>
+                                    <th>Unit Price (₹)</th>
+                                    <th>Expiry Date</th>
+                                    <th>Threshold Alert</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="med-tbody">
+                                <tr><td colspan="7" style="text-align: center; padding: 25px;">Loading medicine stock...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Add/Restock Medicine Modal -->
+    <div id="medModal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3 id="med-modal-title">Add Medicine to Pharmacy</h3>
+                <button class="modal-close" onclick="closeModal('medModal')">&times;</button>
+            </div>
+            <form id="medForm">
+                <div class="modal-body">
+                    <input type="hidden" id="med-edit-id">
+                    <div class="form-group">
+                        <label class="form-label">Medicine Name & Strength *</label>
+                        <input type="text" id="med-form-name" class="form-control-custom" placeholder="e.g. Ciprofloxacin 500mg" required>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div class="form-group">
+                            <label class="form-label">Therapeutic Category *</label>
+                            <input type="text" id="med-form-cat" class="form-control-custom" placeholder="e.g. Antibiotic, Analgesic" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Unit Price (₹) *</label>
+                            <input type="number" id="med-form-price" class="form-control-custom" min="0" step="0.5" value="25.0" required>
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div class="form-group">
+                            <label class="form-label">Quantity in Stock *</label>
+                            <input type="number" id="med-form-qty" class="form-control-custom" min="0" value="100" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Minimum Stock Alert Threshold *</label>
+                            <input type="number" id="med-form-min" class="form-control-custom" min="1" value="20" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Expiry Date *</label>
+                        <input type="date" id="med-form-expiry" class="form-control-custom" required value="2027-12-31">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary-custom" onclick="closeModal('medModal')">Cancel</button>
+                    <button type="submit" class="btn-primary-custom" id="med-submit-btn">Save Medicine</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        let currentUser = null;
+        let medicinesList = [];
+
+        function openModal(id) { document.getElementById(id).classList.add("active"); }
+        function closeModal(id) { document.getElementById(id).classList.remove("active"); }
+
+        async function initPharmacy() {
+            currentUser = await Auth.checkAuth(["admin", "doctor", "receptionist", "patient"]);
+            if (!currentUser) return;
+            Auth.renderNavigation("pharmacy");
+
+            if (currentUser.role !== "admin" && currentUser.role !== "receptionist") {
+                document.getElementById("add-med-btn").style.display = "none";
+            }
+
+            loadMedicines();
+        }
+
+        async function loadMedicines() {
+            const lowOnly = document.getElementById("low-stock-check").checked;
+            const search = document.getElementById("med-search").value.trim();
+            let q = [];
+            if (lowOnly) q.push("low_stock=true");
+            if (search) q.push(`search=${encodeURIComponent(search)}`);
+            const queryStr = q.length ? `?${q.join("&")}` : "";
+
+            try {
+                const res = await API.get(`/medicines${queryStr}`);
+                medicinesList = res.data || [];
+                renderMedicines(medicinesList);
+            } catch (err) {
+                showToast("Failed to load medicines: " + err.message, "error");
+            }
+        }
+
+        function renderMedicines(list) {
+            const tbody = document.getElementById("med-tbody");
+            if (list.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 25px; color:#64748b;">No medicines found in pharmacy stock.</td></tr>`;
+                return;
+            }
+            tbody.innerHTML = list.map(m => `
+                <tr style="${m.is_low_stock ? 'background-color:#fff5f5;' : ''}">
+                    <td><strong>💊 ${m.medicine_name}</strong></td>
+                    <td><span class="badge-status badge-confirmed" style="font-size:11px;">${m.category}</span></td>
+                    <td>
+                        <strong style="font-size:15px; color:${m.is_low_stock ? '#dc2626' : '#15803d'};">${m.quantity}</strong> units
+                    </td>
+                    <td><strong>₹${m.unit_price.toFixed(2)}</strong></td>
+                    <td>${m.expiry_date}</td>
+                    <td>
+                        ${m.is_low_stock ? `
+                            <span class="badge-status badge-cancelled">⚠️ Low Stock (Min: ${m.minimum_stock})</span>
+                        ` : `
+                            <span class="badge-status badge-active">Optimal (Min: ${m.minimum_stock})</span>
+                        `}
+                    </td>
+                    <td>
+                        ${currentUser.role === 'admin' || currentUser.role === 'receptionist' ? `
+                            <button class="btn-secondary-custom btn-sm-custom" onclick="openRestockModal(${m.id})">Restock / Edit</button>
+                        ` : `<span style="font-size:12px; color:#64748b;">Available</span>`}
+                    </td>
+                </tr>
+            `).join("");
+        }
+
+        let searchTimeout;
+        function handleSearch() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                loadMedicines();
+            }, 300);
+        }
+
+        function openAddMedModal() {
+            document.getElementById("med-modal-title").innerText = "Add Medicine to Pharmacy";
+            document.getElementById("med-edit-id").value = "";
+            document.getElementById("med-form-name").value = "";
+            document.getElementById("med-form-cat").value = "General";
+            document.getElementById("med-form-price").value = "30.0";
+            document.getElementById("med-form-qty").value = "100";
+            document.getElementById("med-form-min").value = "20";
+            document.getElementById("med-form-expiry").value = "2027-12-31";
+            openModal("medModal");
+        }
+
+        function openRestockModal(id) {
+            const m = medicinesList.find(x => x.id === id);
+            if (!m) return;
+
+            document.getElementById("med-modal-title").innerText = "Update / Restock Medicine";
+            document.getElementById("med-edit-id").value = m.id;
+            document.getElementById("med-form-name").value = m.medicine_name;
+            document.getElementById("med-form-cat").value = m.category;
+            document.getElementById("med-form-price").value = m.unit_price;
+            document.getElementById("med-form-qty").value = m.quantity;
+            document.getElementById("med-form-min").value = m.minimum_stock;
+            document.getElementById("med-form-expiry").value = m.expiry_date;
+            openModal("medModal");
+        }
+
+        document.getElementById("medForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const editId = document.getElementById("med-edit-id").value;
+
+            const payload = {
+                medicine_name: document.getElementById("med-form-name").value.trim(),
+                category: document.getElementById("med-form-cat").value.trim(),
+                unit_price: parseFloat(document.getElementById("med-form-price").value),
+                quantity: parseInt(document.getElementById("med-form-qty").value),
+                minimum_stock: parseInt(document.getElementById("med-form-min").value),
+                expiry_date: document.getElementById("med-form-expiry").value
+            };
+
+            try {
+                if (editId) {
+                    payload.id = parseInt(editId);
+                    await API.put("/medicines", payload);
+                    showToast("Medicine inventory updated successfully!", "success");
+                } else {
+                    await API.post("/medicines", payload);
+                    showToast("New medicine added to pharmacy inventory!", "success");
+                }
+                closeModal("medModal");
+                loadMedicines();
+            } catch (err) {
+                showToast(err.message, "error");
+            }
+        });
+
+        initPharmacy();
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hospital Departments - Medicare HMS</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <div id="sidebar-container"></div>
+
+        <div class="main-wrapper">
+            <header class="top-navbar">
+                <div class="navbar-title">Clinical Departments & Centers of Excellence</div>
+                <div class="navbar-actions">
+                    <button id="add-dept-btn" class="btn-primary-custom btn-sm-custom" onclick="openModal('deptModal')">+ Add Department</button>
+                </div>
+            </header>
+
+            <main class="content-body">
+                <div class="custom-card">
+                    <div class="card-header-flex">
+                        <span class="card-title">Hospital Medical Specialties</span>
+                        <span style="font-size:12px; color:#64748b;">Comprehensive outpatient and inpatient services</span>
+                    </div>
+
+                    <div id="depts-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; padding: 25px;">
+                        <!-- Departments loaded here -->
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Add Department Modal -->
+    <div id="deptModal" class="modal-overlay">
+        <div class="modal-box" style="max-width: 480px;">
+            <div class="modal-header">
+                <h3>Add New Clinical Department</h3>
+                <button class="modal-close" onclick="closeModal('deptModal')">&times;</button>
+            </div>
+            <form id="deptForm">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="form-label">Department Name *</label>
+                        <input type="text" id="dept-name" class="form-control-custom" placeholder="e.g. Oncology, Nephrology" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Description & Scope of Care</label>
+                        <textarea id="dept-desc" class="form-control-custom" rows="3" placeholder="Summary of medical conditions treated, specialized equipment..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary-custom" onclick="closeModal('deptModal')">Cancel</button>
+                    <button type="submit" class="btn-primary-custom">Create Department</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        let currentUser = null;
+
+        function openModal(id) { document.getElementById(id).classList.add("active"); }
+        function closeModal(id) { document.getElementById(id).classList.remove("active"); }
+
+        async function initDepartments() {
+            currentUser = await Auth.checkAuth(["admin", "doctor", "receptionist", "patient"]);
+            if (!currentUser) return;
+            Auth.renderNavigation("departments");
+
+            if (currentUser.role !== "admin") {
+                document.getElementById("add-dept-btn").style.display = "none";
+            }
+
+            loadDepartments();
+        }
+
+        async function loadDepartments() {
+            try {
+                const res = await API.get("/departments");
+                const list = res.data || [];
+                const grid = document.getElementById("depts-grid");
+
+                const iconMap = {
+                    "Cardiology": "❤️",
+                    "Neurology": "🧠",
+                    "Pediatrics": "👶",
+                    "Orthopedics": "🦴",
+                    "General Medicine": "🩺",
+                    "Dermatology": "✨"
+                };
+
+                grid.innerHTML = list.map(d => `
+                    <div class="custom-card" style="padding: 24px; border-radius: 12px; margin-bottom: 0; display:flex; flex-direction:column; justify-content:space-between;">
+                        <div>
+                            <div style="font-size: 32px; margin-bottom: 12px;">${iconMap[d.department_name] || '🏥'}</div>
+                            <h3 style="font-size: 18px; font-weight: 700; color: #0f172a; margin-bottom: 8px;">${d.department_name}</h3>
+                            <p style="font-size: 13px; color: #64748b; line-height: 1.5; margin-bottom: 15px;">
+                                ${d.description || 'Specialized clinical diagnostic and therapeutic healthcare services.'}
+                            </p>
+                        </div>
+                        <div style="border-top: 1px solid #f1f5f9; padding-top: 15px; display:flex; justify-content:space-between; align-items:center;">
+                            <span style="font-size: 12px; color: #1a56db; font-weight: 600;">Specialty Unit #${d.id}</span>
+                            <a href="doctors.html" class="btn-secondary-custom btn-sm-custom">View Doctors ➔</a>
+                        </div>
+                    </div>
+                `).join("");
+            } catch (err) {
+                showToast("Failed to load departments: " + err.message, "error");
+            }
+        }
+
+        document.getElementById("deptForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const payload = {
+                department_name: document.getElementById("dept-name").value.trim(),
+                description: document.getElementById("dept-desc").value.trim()
+            };
+
+            try {
+                await API.post("/departments", payload);
+                showToast("Department created successfully!", "success");
+                closeModal("deptModal");
+                loadDepartments();
+            } catch (err) {
+                showToast(err.message, "error");
+            }
+        });
+
+        initDepartments();
+    </script>
+</body>
+</html>
+

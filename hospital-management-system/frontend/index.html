@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medicare Hospital Management System - Powered by C Backend</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .public-nav {
+            background: white;
+            padding: 16px 40px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 20px;
+            font-weight: 800;
+            color: #1a56db;
+            text-decoration: none;
+        }
+        .brand-badge {
+            background: #1a56db;
+            color: white;
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        .hero-btns {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 25px;
+        }
+        .specialty-badge {
+            background: #e0f2fe;
+            color: #0369a1;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            display: inline-block;
+        }
+        .footer {
+            background: #0f172a;
+            color: #94a3b8;
+            padding: 40px 20px;
+            text-align: center;
+            font-size: 14px;
+            margin-top: 60px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="public-nav">
+        <a href="index.html" class="brand">
+            <div class="brand-badge">+</div>
+            <span>Medicare HMS</span>
+        </a>
+        <div style="display:flex; gap:15px; align-items:center;">
+            <a href="login.html" class="btn-secondary-custom">Staff & Patient Login</a>
+            <a href="register.html" class="btn-primary-custom">Register as Patient</a>
+        </div>
+    </nav>
+
+    <header class="hero-section">
+        <div style="max-width:800px; margin:0 auto;">
+            <div style="display:inline-block; background:rgba(255,255,255,0.15); padding:6px 16px; border-radius:30px; font-size:13px; margin-bottom:20px; font-weight:600;">
+                ⚡ High-Performance C11 Backend & SQLite Database Architecture
+            </div>
+            <h1 class="hero-title">Next-Generation Hospital Management System</h1>
+            <p class="hero-subtitle">
+                A mission-critical medical platform delivering real-time patient care, doctor appointment scheduling, electronic health records, pharmacy stock tracking, and INR billing.
+            </p>
+            <div class="hero-btns">
+                <a href="login.html" class="btn-primary-custom" style="padding:12px 24px; font-size:16px;">Access Portal ➔</a>
+                <a href="register.html" class="btn-secondary-custom" style="padding:12px 24px; font-size:16px; background:white;">New Patient Registration</a>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div style="text-align:center; margin-bottom:30px;">
+            <h2 style="font-size:28px; font-weight:800; color:#0f172a; margin-bottom:10px;">Comprehensive Hospital Modules</h2>
+            <p style="color:#64748b; max-width:600px; margin:0 auto;">Designed to seamlessly handle outpatient management, clinical documentation, and emergency admissions.</p>
+        </div>
+
+        <div class="feature-grid">
+            <div class="feature-card">
+                <div class="feature-icon">📅</div>
+                <h3 style="margin-bottom:10px; color:#0f172a;">Smart Appointment Booking</h3>
+                <p style="color:#64748b; font-size:14px; line-height:1.6;">Automated doctor slot allocation with robust backend concurrency checks preventing double bookings.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📋</div>
+                <h3 style="margin-bottom:10px; color:#0f172a;">Electronic Medical Records (EMR)</h3>
+                <p style="color:#64748b; font-size:14px; line-height:1.6;">Secure clinical diagnosis, progress notes, and visit history maintained strictly by licensed doctors.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🚨</div>
+                <h3 style="margin-bottom:10px; color:#0f172a;">Emergency Triage Queue</h3>
+                <p style="color:#64748b; font-size:14px; line-height:1.6;">Real-time prioritization queue categorized into Critical, High, Medium, and Low severity for rapid response.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">💊</div>
+                <h3 style="margin-bottom:10px; color:#0f172a;">Pharmacy Inventory Control</h3>
+                <p style="color:#64748b; font-size:14px; line-height:1.6;">Automated medicine stock tracking with threshold alerts and prescription dispensing validation.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🧾</div>
+                <h3 style="margin-bottom:10px; color:#0f172a;">Billing & Financial Analytics</h3>
+                <p style="color:#64748b; font-size:14px; line-height:1.6;">Transparent INR (₹) invoicing with 5% GST calculation, receipt generation, and payment recording.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🔒</div>
+                <h3 style="margin-bottom:10px; color:#0f172a;">Role-Based Security</h3>
+                <p style="color:#64748b; font-size:14px; line-height:1.6;">Backend enforced authorization across 4 distinct roles: Admin, Doctor, Receptionist, and Patient.</p>
+            </div>
+        </div>
+
+        <!-- Featured Specialists Section -->
+        <div style="margin-top:40px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <h3 style="font-size:22px; font-weight:700; color:#0f172a;">Our Clinical Specialists</h3>
+                <a href="login.html" style="color:#1a56db; text-decoration:none; font-weight:600;">Book Consultation ➔</a>
+            </div>
+            <div id="doctors-container" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:20px;">
+                <!-- Populated via C API -->
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <p style="margin-bottom:8px; font-weight:600; color:#e2e8f0;">Medicare Advanced Hospital Management System</p>
+        <p>Full-Stack Academic Capstone Project • C11 Backend • SQLite C API • Apache CGI</p>
+        <p style="margin-top:10px; font-size:12px; color:#64748b;">For academic demonstration only. Not for real patient clinical emergency diagnosis.</p>
+    </footer>
+
+    <script src="js/api.js"></script>
+    <script>
+        async function loadDoctors() {
+            try {
+                const res = await API.get("/doctors?status=active");
+                const list = res.data || [];
+                const container = document.getElementById("doctors-container");
+                if (list.length === 0) {
+                    container.innerHTML = "<p>No active doctors currently listed.</p>";
+                    return;
+                }
+                container.innerHTML = list.slice(0, 4).map(d => `
+                    <div class="custom-card" style="padding:20px; text-align:center;">
+                        <div style="width:60px; height:60px; background:#dbeafe; color:#1d4ed8; border-radius:50%; margin:0 auto 15px; display:flex; align-items:center; justify-content:center; font-size:24px;">🩺</div>
+                        <h4 style="font-size:16px; margin-bottom:4px; color:#0f172a;">${d.full_name}</h4>
+                        <span class="specialty-badge" style="margin-bottom:12px;">${d.department_name}</span>
+                        <p style="font-size:13px; color:#64748b; margin-bottom:8px;">${d.specialization}</p>
+                        <p style="font-size:12px; color:#94a3b8; margin-bottom:15px;">🕒 ${d.availability}</p>
+                        <div style="font-weight:700; color:#0f172a; margin-bottom:12px;">Fee: ₹${d.consultation_fee.toFixed(2)}</div>
+                        <a href="login.html" class="btn-primary-custom" style="width:100%; justify-content:center; font-size:13px;">Book Appointment</a>
+                    </div>
+                `).join("");
+            } catch (err) {
+                console.error("Failed to load doctors:", err);
+            }
+        }
+        loadDoctors();
+    </script>
+</body>
+</html>
+

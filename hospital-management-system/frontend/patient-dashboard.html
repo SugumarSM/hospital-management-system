@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Health Portal - Medicare HMS</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <div id="sidebar-container"></div>
+
+        <div class="main-wrapper">
+            <header class="top-navbar">
+                <div class="navbar-title">Patient Personal Health Portal</div>
+                <div class="navbar-actions">
+                    <button class="btn-primary-custom btn-sm-custom" onclick="openBookModal()">📅 Book Appointment</button>
+                </div>
+            </header>
+
+            <main class="content-body">
+                <!-- Patient Profile Card -->
+                <div class="custom-card" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); color: white; padding: 25px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 20px;">
+                        <div style="display: flex; align-items: center; gap: 20px;">
+                            <div style="width: 70px; height: 70px; background: rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 32px;">👤</div>
+                            <div>
+                                <h2 id="p-name" style="font-size: 22px; font-weight: 800; margin-bottom: 4px;">Loading Profile...</h2>
+                                <p id="p-meta" style="color: #e0f2fe; font-size: 14px;">Patient ID • Blood Group</p>
+                            </div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.15); padding: 12px 20px; border-radius: 10px; font-size: 13px;">
+                            <div><strong>Phone:</strong> <span id="p-phone">--</span></div>
+                            <div style="margin-top: 4px;"><strong>Emergency Contact:</strong> <span id="p-emg">--</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Appointments and Health Records Grid -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px;">
+                    <!-- My Appointments -->
+                    <div class="custom-card">
+                        <div class="card-header-flex">
+                            <span class="card-title">My Appointments</span>
+                            <button class="btn-primary-custom btn-sm-custom" onclick="openBookModal()">+ Book</button>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="custom-table">
+                                <thead>
+                                    <tr>
+                                        <th>Doctor</th>
+                                        <th>Date & Slot</th>
+                                        <th>Status</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="p-appts-tbody">
+                                    <tr><td colspan="4" style="text-align: center; padding: 20px;">Loading appointments...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Invoices & Pending Payments -->
+                    <div class="custom-card">
+                        <div class="card-header-flex">
+                            <span class="card-title">Billing & Invoices</span>
+                            <a href="billing.html" class="btn-secondary-custom btn-sm-custom">All Bills ➔</a>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="custom-table">
+                                <thead>
+                                    <tr>
+                                        <th>Invoice #</th>
+                                        <th>Amount (₹)</th>
+                                        <th>Status</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="p-bills-tbody">
+                                    <tr><td colspan="4" style="text-align: center; padding: 20px;">Loading invoices...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Prescriptions -->
+                <div class="custom-card">
+                    <div class="card-header-flex">
+                        <span class="card-title">My Recent Prescriptions & Medications</span>
+                        <a href="prescriptions.html" class="btn-secondary-custom btn-sm-custom">View All ➔</a>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="custom-table">
+                            <thead>
+                                <tr>
+                                    <th>Medicine Name</th>
+                                    <th>Dosage</th>
+                                    <th>Frequency</th>
+                                    <th>Duration</th>
+                                    <th>Prescribing Doctor</th>
+                                </tr>
+                            </thead>
+                            <tbody id="p-rx-tbody">
+                                <tr><td colspan="5" style="text-align: center; padding: 20px;">Loading prescriptions...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Booking Modal -->
+    <div id="bookModal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3>Schedule Doctor Consultation</h3>
+                <button class="modal-close" onclick="closeBookModal()">&times;</button>
+            </div>
+            <form id="bookForm">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="form-label">Select Doctor & Department *</label>
+                        <select id="book-doctor" class="form-control-custom" required>
+                            <option value="">Loading doctors...</option>
+                        </select>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div class="form-group">
+                            <label class="form-label">Appointment Date *</label>
+                            <input type="date" id="book-date" class="form-control-custom" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Time Slot *</label>
+                            <select id="book-time" class="form-control-custom" required>
+                                <option value="09:00">09:00 AM</option>
+                                <option value="09:30">09:30 AM</option>
+                                <option value="10:00">10:00 AM</option>
+                                <option value="10:30">10:30 AM</option>
+                                <option value="11:00">11:00 AM</option>
+                                <option value="11:30">11:30 AM</option>
+                                <option value="14:00">02:00 PM</option>
+                                <option value="14:30">02:30 PM</option>
+                                <option value="15:00">03:00 PM</option>
+                                <option value="15:30">03:30 PM</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Reason for Visit</label>
+                        <input type="text" id="book-reason" class="form-control-custom" placeholder="e.g. Headache, Routine checkup" value="Consultation">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary-custom" onclick="closeBookModal()">Cancel</button>
+                    <button type="submit" class="btn-primary-custom">Confirm Appointment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Payment Simulation Modal -->
+    <div id="payModal" class="modal-overlay">
+        <div class="modal-box" style="max-width: 480px;">
+            <div class="modal-header">
+                <h3>Record Simulated Payment (INR ₹)</h3>
+                <button class="modal-close" onclick="closePayModal()">&times;</button>
+            </div>
+            <form id="payForm">
+                <div class="modal-body">
+                    <input type="hidden" id="pay-inv-id">
+                    <div style="background:#f8fafc; padding:15px; border-radius:8px; margin-bottom:15px; text-align:center;">
+                        <span style="font-size:13px; color:#64748b;">Total Amount Due:</span>
+                        <div id="pay-amount-display" style="font-size:24px; font-weight:800; color:#1a56db; margin-top:4px;">₹0.00</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Payment Method</label>
+                        <select id="pay-method" class="form-control-custom">
+                            <option value="UPI">UPI (GooglePay / PhonePe / Paytm)</option>
+                            <option value="Card">Debit / Credit Card</option>
+                            <option value="NetBanking">Net Banking</option>
+                            <option value="Cash">Cash at Hospital Desk</option>
+                        </select>
+                    </div>
+                    <p style="font-size:12px; color:#64748b; line-height:1.4;">
+                        ℹ️ <strong>Demo Simulation:</strong> This records payment transaction into the SQLite database. No real credit card charge occurs.
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary-custom" onclick="closePayModal()">Cancel</button>
+                    <button type="submit" class="btn-primary-custom">Complete Simulated Payment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        let currentPatient = null;
+
+        function openBookModal() { document.getElementById("bookModal").classList.add("active"); }
+        function closeBookModal() { document.getElementById("bookModal").classList.remove("active"); }
+        function openPayModal(invId, amount) {
+            document.getElementById("pay-inv-id").value = invId;
+            document.getElementById("pay-amount-display").innerText = "₹" + amount.toFixed(2);
+            document.getElementById("payModal").classList.add("active");
+        }
+        function closePayModal() { document.getElementById("payModal").classList.remove("active"); }
+
+        async function initPatientPortal() {
+            currentPatient = await Auth.checkAuth(["patient"]);
+            if (!currentPatient) return;
+            Auth.renderNavigation("dashboard");
+
+            document.getElementById("p-name").innerText = currentPatient.full_name || currentPatient.username;
+            document.getElementById("p-meta").innerText = `Patient Code: ${currentPatient.patient_code || 'PAT-NEW'} • Blood Group: ${currentPatient.blood_group || 'O+'} • DOB: ${currentPatient.date_of_birth || 'N/A'}`;
+            document.getElementById("p-phone").innerText = currentPatient.phone || "Not provided";
+            document.getElementById("p-emg").innerText = currentPatient.emergency_contact || "Not provided";
+
+            // Tomorrow as default appointment date
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            document.getElementById("book-date").value = tomorrow.toISOString().split('T')[0];
+
+            loadDoctorsList();
+            loadAppointments();
+            loadInvoices();
+            loadPrescriptions();
+        }
+
+        async function loadDoctorsList() {
+            try {
+                const res = await API.get("/doctors?status=active");
+                const sel = document.getElementById("book-doctor");
+                sel.innerHTML = (res.data || []).map(d => `
+                    <option value="${d.id}">${d.full_name} (${d.department_name}) - Fee: ₹${d.consultation_fee}</option>
+                `).join("");
+            } catch (err) {
+                console.error("Failed to load doctors:", err);
+            }
+        }
+
+        async function loadAppointments() {
+            try {
+                const res = await API.get("/appointments");
+                const list = res.data || [];
+                const tbody = document.getElementById("p-appts-tbody");
+                if (list.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:15px; color:#64748b;">No scheduled appointments.</td></tr>`;
+                    return;
+                }
+                tbody.innerHTML = list.map(a => `
+                    <tr>
+                        <td><strong>${a.doctor_name}</strong><br><small style="color:#64748b;">${a.department_name}</small></td>
+                        <td>${a.appointment_date}<br><small>${a.appointment_time}</small></td>
+                        <td><span class="badge-status badge-${a.status.toLowerCase()}">${a.status}</span></td>
+                        <td>
+                            ${a.status !== 'Cancelled' && a.status !== 'Completed' ? `
+                                <button class="btn-secondary-custom btn-sm-custom" onclick="cancelAppt(${a.id})">Cancel</button>
+                            ` : `<span style="font-size:12px; color:#64748b;">--</span>`}
+                        </td>
+                    </tr>
+                `).join("");
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function cancelAppt(id) {
+            if (!confirm("Are you sure you want to cancel this appointment?")) return;
+            try {
+                await API.post("/appointments/cancel", { id });
+                showToast("Appointment cancelled.", "info");
+                loadAppointments();
+            } catch (err) {
+                showToast(err.message, "error");
+            }
+        }
+
+        async function loadInvoices() {
+            try {
+                const res = await API.get("/invoices");
+                const list = res.data || [];
+                const tbody = document.getElementById("p-bills-tbody");
+                if (list.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:15px; color:#64748b;">No invoices generated.</td></tr>`;
+                    return;
+                }
+                tbody.innerHTML = list.map(inv => `
+                    <tr>
+                        <td>INV-#${inv.id}</td>
+                        <td><strong>₹${inv.total_amount.toFixed(2)}</strong></td>
+                        <td><span class="badge-status badge-${inv.payment_status.toLowerCase()}">${inv.payment_status}</span></td>
+                        <td>
+                            ${inv.payment_status !== 'Paid' ? `
+                                <button class="btn-primary-custom btn-sm-custom" onclick="openPayModal(${inv.id}, ${inv.total_amount})">Pay Now</button>
+                            ` : `<span style="color:#15803d; font-size:12px; font-weight:600;">✓ Paid</span>`}
+                        </td>
+                    </tr>
+                `).join("");
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function loadPrescriptions() {
+            try {
+                const res = await API.get("/prescriptions");
+                const list = res.data || [];
+                const tbody = document.getElementById("p-rx-tbody");
+                if (list.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:20px; color:#64748b;">No clinical prescriptions recorded.</td></tr>`;
+                    return;
+                }
+                tbody.innerHTML = list.map(rx => `
+                    <tr>
+                        <td><strong>${rx.medicine_name}</strong><br><small style="color:#64748b;">${rx.instructions}</small></td>
+                        <td>${rx.dosage}</td>
+                        <td>${rx.frequency}</td>
+                        <td>${rx.duration}</td>
+                        <td>${rx.doctor_name} (${rx.department_name})</td>
+                    </tr>
+                `).join("");
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        document.getElementById("bookForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const payload = {
+                doctor_id: parseInt(document.getElementById("book-doctor").value),
+                appointment_date: document.getElementById("book-date").value,
+                appointment_time: document.getElementById("book-time").value,
+                reason: document.getElementById("book-reason").value.trim()
+            };
+            try {
+                await API.post("/appointments", payload);
+                showToast("Appointment booked successfully!", "success");
+                closeBookModal();
+                loadAppointments();
+                loadInvoices();
+            } catch (err) {
+                showToast(err.message, "error");
+            }
+        });
+
+        document.getElementById("payForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const invId = parseInt(document.getElementById("pay-inv-id").value);
+            const method = document.getElementById("pay-method").value;
+            // Parse amount from display
+            const amtStr = document.getElementById("pay-amount-display").innerText.replace("₹", "");
+            const amount = parseFloat(amtStr);
+
+            try {
+                const res = await API.post("/payments", {
+                    invoice_id: invId,
+                    amount: amount,
+                    payment_method: method
+                });
+                showToast("Payment recorded! Ref: " + res.data.reference_number, "success");
+                closePayModal();
+                loadInvoices();
+            } catch (err) {
+                showToast(err.message, "error");
+            }
+        });
+
+        initPatientPortal();
+    </script>
+</body>
+</html>
+

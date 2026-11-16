@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Doctors Directory - Medicare HMS</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <div id="sidebar-container"></div>
+
+        <div class="main-wrapper">
+            <header class="top-navbar">
+                <div class="navbar-title">Medical Staff & Doctors Directory</div>
+                <div class="navbar-actions">
+                    <button id="add-doc-btn" class="btn-primary-custom btn-sm-custom" onclick="openAddDoctorModal()">+ Add Doctor</button>
+                </div>
+            </header>
+
+            <main class="content-body">
+                <div class="custom-card">
+                    <div class="card-header-flex">
+                        <div>
+                            <span class="card-title">Hospital Medical Specialists</span>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <select id="dept-filter" class="form-control-custom" style="width: 200px; font-size: 13px;" onchange="loadDoctors()">
+                                <option value="">All Departments</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="doctors-cards-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; padding: 20px;">
+                        <!-- Rendered via JS -->
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Add/Edit Doctor Modal -->
+    <div id="doctorModal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3 id="doc-modal-title">Add Medical Specialist</h3>
+                <button class="modal-close" onclick="closeModal('doctorModal')">&times;</button>
+            </div>
+            <form id="doctorForm">
+                <div class="modal-body">
+                    <input type="hidden" id="doc-edit-id">
+                    <div class="form-group">
+                        <label class="form-label">Full Name & Title *</label>
+                        <input type="text" id="doc-form-name" class="form-control-custom" placeholder="e.g. Dr. Ramesh Gupta" required>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div class="form-group">
+                            <label class="form-label">Department *</label>
+                            <select id="doc-form-dept" class="form-control-custom" required>
+                                <option value="">Select Department</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Consultation Fee (₹) *</label>
+                            <input type="number" id="doc-form-fee" class="form-control-custom" min="0" step="50" value="500" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Specialization *</label>
+                        <input type="text" id="doc-form-spec" class="form-control-custom" placeholder="e.g. Interventional Cardiology, Pediatric Surgery" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Qualifications</label>
+                        <input type="text" id="doc-form-qual" class="form-control-custom" placeholder="e.g. MBBS, MD, DM, MRCP" value="MBBS, MD">
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div class="form-group">
+                            <label class="form-label">Available Hours</label>
+                            <input type="text" id="doc-form-avail" class="form-control-custom" placeholder="e.g. 09:00 - 15:00" value="09:00 - 16:00">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Status</label>
+                            <select id="doc-form-status" class="form-control-custom">
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary-custom" onclick="closeModal('doctorModal')">Cancel</button>
+                    <button type="submit" class="btn-primary-custom" id="doc-submit-btn">Save Doctor Profile</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        let currentUser = null;
+        let doctorsData = [];
+        let departmentsData = [];
+
+        function openModal(id) { document.getElementById(id).classList.add("active"); }
+        function closeModal(id) { document.getElementById(id).classList.remove("active"); }
+
+        async function initDoctors() {
+            currentUser = await Auth.checkAuth(["admin", "doctor", "receptionist", "patient"]);
+            if (!currentUser) return;
+            Auth.renderNavigation("doctors");
+
+            if (currentUser.role !== "admin") {
+                document.getElementById("add-doc-btn").style.display = "none";
+            }
+
+            await loadDepartments();
+            await loadDoctors();
+        }
+
+        async function loadDepartments() {
+            try {
+                const res = await API.get("/departments");
+                departmentsData = res.data || [];
+                const filterSel = document.getElementById("dept-filter");
+                const formSel = document.getElementById("doc-form-dept");
+
+                filterSel.innerHTML = '<option value="">All Departments</option>' + departmentsData.map(d => `
+                    <option value="${d.id}">${d.department_name}</option>
+                `).join("");
+
+                formSel.innerHTML = '<option value="">Select Department</option>' + departmentsData.map(d => `
+                    <option value="${d.id}">${d.department_name}</option>
+                `).join("");
+            } catch (err) {
+                console.error("Failed to load departments:", err);
+            }
+        }
+
+        async function loadDoctors() {
+            const deptId = document.getElementById("dept-filter").value;
+            const query = deptId ? `?department_id=${deptId}` : "";
+            try {
+                const res = await API.get(`/doctors${query}`);
+                doctorsData = res.data || [];
+                renderDoctors(doctorsData);
+            } catch (err) {
+                showToast("Failed to load doctors: " + err.message, "error");
+            }
+        }
+
+        function renderDoctors(list) {
+            const container = document.getElementById("doctors-cards-grid");
+            if (list.length === 0) {
+                container.innerHTML = `<p style="grid-column: 1/-1; text-align:center; padding:30px; color:#64748b;">No doctors found matching filters.</p>`;
+                return;
+            }
+            container.innerHTML = list.map(d => `
+                <div class="custom-card" style="padding: 22px; text-align: center; border-radius: 12px; margin-bottom: 0;">
+                    <div style="width: 60px; height: 60px; background: #e0f2fe; color: #0284c7; border-radius: 50%; margin: 0 auto 12px; display: flex; align-items: center; justify-content: center; font-size: 24px;">🩺</div>
+                    <h3 style="font-size: 17px; font-weight: 700; color: #0f172a; margin-bottom: 2px;">${d.full_name}</h3>
+                    <div style="display:inline-block; background:#e1effe; color:#1e429f; font-size:12px; font-weight:600; padding:3px 10px; border-radius:15px; margin-bottom:8px;">
+                        ${d.department_name}
+                    </div>
+                    <p style="font-size: 13px; color: #475569; margin-bottom: 6px;">${d.specialization}</p>
+                    <p style="font-size: 12px; color: #64748b; margin-bottom: 12px;">🎓 ${d.qualification}</p>
+                    <div style="background: #f8fafc; padding: 8px; border-radius: 8px; font-size: 12px; margin-bottom: 15px;">
+                        <div>🕒 ${d.availability}</div>
+                        <div style="font-weight:700; color:#0f172a; margin-top:3px;">Consultation: ₹${d.consultation_fee.toFixed(2)}</div>
+                    </div>
+                    <div>
+                        <span class="badge-status badge-${d.status}">${d.status}</span>
+                    </div>
+                    <div style="margin-top: 15px; display: flex; gap: 8px; justify-content: center;">
+                        ${currentUser.role === 'admin' ? `
+                            <button class="btn-secondary-custom btn-sm-custom" onclick="editDoctor(${d.id})">Edit Profile</button>
+                        ` : ''}
+                        ${currentUser.role === 'patient' || currentUser.role === 'receptionist' ? `
+                            <a href="appointments.html?doc_id=${d.id}" class="btn-primary-custom btn-sm-custom">Book Appointment</a>
+                        ` : ''}
+                    </div>
+                </div>
+            `).join("");
+        }
+
+        function openAddDoctorModal() {
+            document.getElementById("doc-modal-title").innerText = "Add Medical Specialist";
+            document.getElementById("doc-edit-id").value = "";
+            document.getElementById("doc-form-name").value = "";
+            document.getElementById("doc-form-dept").value = "";
+            document.getElementById("doc-form-fee").value = "500";
+            document.getElementById("doc-form-spec").value = "";
+            document.getElementById("doc-form-qual").value = "MBBS, MD";
+            document.getElementById("doc-form-avail").value = "09:00 - 17:00";
+            document.getElementById("doc-form-status").value = "active";
+            openModal("doctorModal");
+        }
+
+        function editDoctor(id) {
+            const d = doctorsData.find(x => x.id === id);
+            if (!d) return;
+
+            document.getElementById("doc-modal-title").innerText = "Edit Doctor Details";
+            document.getElementById("doc-edit-id").value = d.id;
+            document.getElementById("doc-form-name").value = d.full_name;
+            document.getElementById("doc-form-dept").value = d.department_id;
+            document.getElementById("doc-form-fee").value = d.consultation_fee;
+            document.getElementById("doc-form-spec").value = d.specialization;
+            document.getElementById("doc-form-qual").value = d.qualification;
+            document.getElementById("doc-form-avail").value = d.availability;
+            document.getElementById("doc-form-status").value = d.status;
+            openModal("doctorModal");
+        }
+
+        document.getElementById("doctorForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const editId = document.getElementById("doc-edit-id").value;
+            const payload = {
+                full_name: document.getElementById("doc-form-name").value.trim(),
+                department_id: parseInt(document.getElementById("doc-form-dept").value),
+                consultation_fee: parseFloat(document.getElementById("doc-form-fee").value),
+                specialization: document.getElementById("doc-form-spec").value.trim(),
+                qualification: document.getElementById("doc-form-qual").value.trim(),
+                availability: document.getElementById("doc-form-avail").value.trim(),
+                status: document.getElementById("doc-form-status").value
+            };
+
+            try {
+                if (editId) {
+                    payload.id = parseInt(editId);
+                    await API.put("/doctors", payload);
+                    showToast("Doctor updated successfully!", "success");
+                } else {
+                    await API.post("/doctors", payload);
+                    showToast("Doctor added to hospital roster!", "success");
+                }
+                closeModal("doctorModal");
+                loadDoctors();
+            } catch (err) {
+                showToast(err.message, "error");
+            }
+        });
+
+        initDoctors();
+    </script>
+</body>
+</html>
+

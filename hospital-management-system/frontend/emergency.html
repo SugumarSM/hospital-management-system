@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emergency Triage Queue - Medicare HMS</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <div id="sidebar-container"></div>
+
+        <div class="main-wrapper">
+            <header class="top-navbar">
+                <div class="navbar-title">Emergency Department & Triage Queue</div>
+                <div class="navbar-actions">
+                    <button class="btn-primary-custom btn-sm-custom" style="background:#dc2626;" onclick="openModal('emgModal')">+ Admit Emergency Case</button>
+                </div>
+            </header>
+
+            <main class="content-body">
+                <!-- Academic Disclaimer Notice -->
+                <div style="background:#fee2e2; border-left:4px solid #dc2626; padding:12px 18px; border-radius:8px; margin-bottom:20px; font-size:13px; color:#991b1b;">
+                    <strong>Administrative Demonstration Notice:</strong> This module is an administrative workflow demonstration feature for bed and queue management, not a clinical triage system or medical diagnostic tool. Never delay acute emergency clinical care based on software queue scores.
+                </div>
+
+                <div class="custom-card">
+                    <div class="card-header-flex">
+                        <div>
+                            <span class="card-title">Live Emergency Patient Queue</span>
+                            <span style="font-size:12px; color:#64748b; margin-left:8px;">Prioritized by clinical urgency</span>
+                        </div>
+                        <div>
+                            <select id="status-filter" class="form-control-custom" style="width: 160px; font-size: 13px;" onchange="loadEmergencyCases()">
+                                <option value="">Active Cases</option>
+                                <option value="Waiting">Waiting</option>
+                                <option value="In-Treatment">In-Treatment</option>
+                                <option value="Discharged">Discharged</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="custom-table">
+                            <thead>
+                                <tr>
+                                    <th>Urgency Priority</th>
+                                    <th>Patient</th>
+                                    <th>Blood Group</th>
+                                    <th>Reported Acute Symptoms</th>
+                                    <th>Admitted Time</th>
+                                    <th>Current Status</th>
+                                    <th>Manage Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="emg-tbody">
+                                <tr><td colspan="7" style="text-align: center; padding: 25px;">Loading emergency queue...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Admit Emergency Modal -->
+    <div id="emgModal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3 style="color:#dc2626;">🚨 Emergency Patient Admission</h3>
+                <button class="modal-close" onclick="closeModal('emgModal')">&times;</button>
+            </div>
+            <form id="emgForm">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="form-label">Patient Record *</label>
+                        <select id="emg-patient-id" class="form-control-custom" required>
+                            <option value="">Select Patient</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Assigned Priority Level *</label>
+                        <select id="emg-priority" class="form-control-custom" required>
+                            <option value="Critical" style="color:#dc2626; font-weight:bold;">🔴 Critical (Immediate Life Threat)</option>
+                            <option value="High" style="color:#ea580c; font-weight:bold;" selected>🟠 High (Severe Trauma / Acute Distress)</option>
+                            <option value="Medium" style="color:#ca8a04;">🟡 Medium (Urgent Attention Required)</option>
+                            <option value="Low" style="color:#0284c7;">🔵 Low (Stable / Minor Injury)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Reported Symptoms & Vitals *</label>
+                        <textarea id="emg-symptoms" class="form-control-custom" rows="3" placeholder="e.g. Acute severe chest pain radiating to left jaw, diaphoresis, shortness of breath" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary-custom" onclick="closeModal('emgModal')">Cancel</button>
+                    <button type="submit" class="btn-primary-custom" style="background:#dc2626;">Admit to Emergency</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        let currentUser = null;
+        let casesList = [];
+
+        function openModal(id) { document.getElementById(id).classList.add("active"); }
+        function closeModal(id) { document.getElementById(id).classList.remove("active"); }
+
+        async function initEmergency() {
+            currentUser = await Auth.checkAuth(["admin", "doctor", "receptionist", "patient"]);
+            if (!currentUser) return;
+            Auth.renderNavigation("emergency");
+
+            await loadPatients();
+            await loadEmergencyCases();
+        }
+
+        async function loadPatients() {
+            try {
+                const res = await API.get("/patients");
+                const sel = document.getElementById("emg-patient-id");
+                sel.innerHTML = '<option value="">Select Patient</option>' + (res.data || []).map(p => `
+                    <option value="${p.id}">${p.full_name} (${p.patient_code}) - Blood: ${p.blood_group || 'O+'}</option>
+                `).join("");
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function loadEmergencyCases() {
+            const st = document.getElementById("status-filter").value;
+            const query = st ? `?status=${st}` : "";
+            try {
+                const res = await API.get(`/emergency${query}`);
+                casesList = res.data || [];
+                renderCases(casesList);
+            } catch (err) {
+                showToast("Failed to load emergency queue: " + err.message, "error");
+            }
+        }
+
+        function renderCases(list) {
+            const tbody = document.getElementById("emg-tbody");
+            if (list.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 25px; color:#64748b;">No emergency cases currently listed.</td></tr>`;
+                return;
+            }
+            tbody.innerHTML = list.map(c => `
+                <tr style="${c.priority === 'Critical' ? 'background-color:#fff1f2;' : ''}">
+                    <td><span class="badge-status priority-${c.priority.toLowerCase()}">${c.priority.toUpperCase()}</span></td>
+                    <td>
+                        <strong>${c.patient_name}</strong><br>
+                        <small style="color:#64748b;">${c.patient_code} • Ph: ${c.phone}</small>
+                    </td>
+                    <td><strong>${c.blood_group || 'N/A'}</strong></td>
+                    <td style="max-width:280px; font-size:13px;">${c.reported_symptoms}</td>
+                    <td><small style="color:#64748b;">${c.created_at}</small></td>
+                    <td><span class="badge-status badge-${c.status === 'In-Treatment' ? 'confirmed' : (c.status === 'Waiting' ? 'pending' : 'completed')}">${c.status}</span></td>
+                    <td>
+                        ${currentUser.role !== 'patient' ? `
+                            <select class="form-control-custom" style="padding:4px 8px; font-size:12px; width:130px;" onchange="updateCaseStatus(${c.id}, this.value)">
+                                <option value="Waiting" ${c.status === 'Waiting' ? 'selected' : ''}>Waiting</option>
+                                <option value="In-Treatment" ${c.status === 'In-Treatment' ? 'selected' : ''}>In-Treatment</option>
+                                <option value="Discharged" ${c.status === 'Discharged' ? 'selected' : ''}>Discharged</option>
+                            </select>
+                        ` : `<span style="font-size:12px; color:#64748b;">Monitored</span>`}
+                    </td>
+                </tr>
+            `).join("");
+        }
+
+        async function updateCaseStatus(id, newStatus) {
+            try {
+                await API.put("/emergency", { id, status: newStatus });
+                showToast(`Status updated to ${newStatus}`, "success");
+                loadEmergencyCases();
+            } catch (err) {
+                showToast(err.message, "error");
+            }
+        }
+
+        document.getElementById("emgForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const payload = {
+                patient_id: parseInt(document.getElementById("emg-patient-id").value),
+                priority: document.getElementById("emg-priority").value,
+                reported_symptoms: document.getElementById("emg-symptoms").value.trim()
+            };
+
+            try {
+                await API.post("/emergency", payload);
+                showToast("Emergency case registered in triage queue!", "success");
+                closeModal("emgModal");
+                loadEmergencyCases();
+            } catch (err) {
+                showToast(err.message, "error");
+            }
+        });
+
+        initEmergency();
+    </script>
+</body>
+</html>
+

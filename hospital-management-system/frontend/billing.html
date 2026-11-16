@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Billing & Invoicing - Medicare HMS</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .invoice-receipt {
+            background: white;
+            padding: 30px;
+            border: 2px solid #cbd5e1;
+            border-radius: 12px;
+            max-width: 650px;
+            margin: 0 auto;
+        }
+        .inv-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            border-bottom: 2px solid #1a56db;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div id="sidebar-container"></div>
+
+        <div class="main-wrapper">
+            <header class="top-navbar">
+                <div class="navbar-title">Patient Invoicing & Accounts (INR ₹)</div>
+                <div class="navbar-actions">
+                    <button id="add-inv-btn" class="btn-primary-custom btn-sm-custom" onclick="openCreateInvModal()">+ Generate Invoice</button>
+                </div>
+            </header>
+
+            <main class="content-body">
+                <div class="custom-card">
+                    <div class="card-header-flex">
+                        <div>
+                            <span class="card-title">Hospital Billing Ledger</span>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <select id="inv-status-filter" class="form-control-custom" style="width: 160px; font-size: 13px;" onchange="loadInvoices()">
+                                <option value="">All Invoices</option>
+                                <option value="Unpaid">Unpaid</option>
+                                <option value="Paid">Paid</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="custom-table">
+                            <thead>
+                                <tr>
+                                    <th>Invoice #</th>
+                                    <th>Patient</th>
+                                    <th>Service / Consultation</th>
+                                    <th>Subtotal (₹)</th>
+                                    <th>GST (5%)</th>
+                                    <th>Total Amount (₹)</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="invoices-tbody">
+                                <tr><td colspan="8" style="text-align: center; padding: 25px;">Loading billing ledger...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Generate Custom Invoice Modal -->
+    <div id="createInvModal" class="modal-overlay">
+        <div class="modal-box" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>Generate Hospital Invoice</h3>
+                <button class="modal-close" onclick="closeModal('createInvModal')">&times;</button>
+            </div>
+            <form id="createInvForm">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="form-label">Patient *</label>
+                        <select id="inv-patient-id" class="form-control-custom" required>
+                            <option value="">Select Patient</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Service Subtotal Charges (₹) *</label>
+                        <input type="number" id="inv-subtotal" class="form-control-custom" min="10" step="10" placeholder="e.g. 1500" required oninput="calcTotal()">
+                    </div>
+                    <div style="background: #f8fafc; padding: 12px; border-radius: 8px; font-size: 13px;">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                            <span>Subtotal:</span>
+                            <span id="display-subtotal">₹0.00</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:4px; color:#64748b;">
+                            <span>GST (5%):</span>
+                            <span id="display-tax">₹0.00</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; font-weight:700; font-size:15px; border-top:1px solid #e2e8f0; padding-top:6px; color:#1a56db;">
+                            <span>Grand Total:</span>
+                            <span id="display-total">₹0.00</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary-custom" onclick="closeModal('createInvModal')">Cancel</button>
+                    <button type="submit" class="btn-primary-custom">Create Invoice</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Record Payment Simulation Modal -->
+    <div id="payModal" class="modal-overlay">
+        <div class="modal-box" style="max-width: 480px;">
+            <div class="modal-header">
+                <h3>Process Patient Payment</h3>
+                <button class="modal-close" onclick="closeModal('payModal')">&times;</button>
+            </div>
+            <form id="payForm">
+                <div class="modal-body">
+                    <input type="hidden" id="pay-inv-id">
+                    <div style="background:#f8fafc; padding:15px; border-radius:8px; margin-bottom:15px; text-align:center;">
+                        <span style="font-size:13px; color:#64748b;">Amount Payable:</span>
+                        <div id="pay-amount-display" style="font-size:24px; font-weight:800; color:#1a56db; margin-top:4px;">₹0.00</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Payment Mode *</label>
+                        <select id="pay-method" class="form-control-custom">
+                            <option value="UPI">UPI (GooglePay / PhonePe / QR)</option>
+                            <option value="Card">Credit / Debit Card (POS Machine)</option>
+                            <option value="Cash">Cash Counter</option>
+                            <option value="NetBanking">Net Banking</option>
+                            <option value="Insurance">TPA Health Insurance Claim</option>
+                        </select>
+                    </div>
+                    <p style="font-size:12px; color:#64748b; line-height:1.4;">
+                        ℹ️ <strong>Academic Demo:</strong> This records the payment transaction into SQLite database and sets the invoice status to Paid.
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary-custom" onclick="closeModal('payModal')">Cancel</button>
+                    <button type="submit" class="btn-primary-custom">Record Payment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Printable Invoice Modal -->
+    <div id="invPrintModal" class="modal-overlay">
+        <div class="modal-box" style="max-width: 680px;">
+            <div class="modal-header">
+                <h3>Hospital Tax Invoice</h3>
+                <button class="modal-close" onclick="closeModal('invPrintModal')">&times;</button>
+            </div>
+            <div class="modal-body" id="print-invoice-content">
+                <!-- Injected via JS -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary-custom" onclick="closeModal('invPrintModal')">Close</button>
+                <button type="button" class="btn-primary-custom" onclick="window.print()">🖨️ Print Invoice Receipt</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        let currentUser = null;
+        let invoicesList = [];
+
+        function openModal(id) { document.getElementById(id).classList.add("active"); }
+        function closeModal(id) { document.getElementById(id).classList.remove("active"); }
+
+        async function initBilling() {
+            currentUser = await Auth.checkAuth(["admin", "doctor", "receptionist", "patient"]);
+            if (!currentUser) return;
+            Auth.renderNavigation("billing");
+
+            if (currentUser.role !== "admin" && currentUser.role !== "receptionist") {
+                document.getElementById("add-inv-btn").style.display = "none";
+            }
+
+            await loadInvoices();
+            if (currentUser.role === "admin" || currentUser.role === "receptionist") {
+                await loadPatientsDropdown();
+            }
+        }
+
+        async function loadPatientsDropdown() {
+            try {
+                const res = await API.get("/patients");
+                const sel = document.getElementById("inv-patient-id");
+                sel.innerHTML = '<option value="">Select Patient</option>' + (res.data || []).map(p => `
+                    <option value="${p.id}">${p.full_name} (${p.patient_code})</option>
+                `).join("");
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function loadInvoices() {
+            const st = document.getElementById("inv-status-filter").value;
+            const query = st ? `?status=${st}` : "";
+            try {
+                const res = await API.get(`/invoices${query}`);
+                invoicesList = res.data || [];
+                renderInvoices(invoicesList);
+            } catch (err) {
+                showToast("Failed to load invoices: " + err.message, "error");
+            }
+        }
+
+        function renderInvoices(list) {
+            const tbody = document.getElementById("invoices-tbody");
+            if (list.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 25px; color:#64748b;">No invoices recorded.</td></tr>`;
+                return;
+            }
+            tbody.innerHTML = list.map(inv => `
+                <tr>
+                    <td><strong>INV-#${inv.id}</strong></td>
+                    <td>
+                        <strong>${inv.patient_name}</strong><br>
+                        <small style="color:#64748b;">${inv.patient_code}</small>
+                    </td>
+                    <td>${inv.doctor_name || 'Hospital Services'}</td>
+                    <td>₹${inv.subtotal.toFixed(2)}</td>
+                    <td>₹${inv.tax.toFixed(2)}</td>
+                    <td><strong style="font-size:15px; color:#1a56db;">₹${inv.total_amount.toFixed(2)}</strong></td>
+                    <td><span class="badge-status badge-${inv.payment_status.toLowerCase()}">${inv.payment_status}</span></td>
+                    <td>
+                        <button class="btn-secondary-custom btn-sm-custom" onclick="openPrintInvoice(${inv.id})">🖨️ Receipt</button>
+                        ${inv.payment_status !== 'Paid' ? `
+                            <button class="btn-primary-custom btn-sm-custom" onclick="openPaymentModal(${inv.id}, ${inv.total_amount})">💳 Pay</button>
+                        ` : ''}
+                    </td>
+                </tr>
+            `).join("");
+        }
+
+        function calcTotal() {
+            const sub = parseFloat(document.getElementById("inv-subtotal").value) || 0;
+            const tax = sub * 0.05;
+            const total = sub + tax;
+            document.getElementById("display-subtotal").innerText = "₹" + sub.toFixed(2);
+            document.getElementById("display-tax").innerText = "₹" + tax.toFixed(2);
+            document.getElementById("display-total").innerText = "₹" + total.toFixed(2);
+        }
+
+        function openCreateInvModal() {
+            document.getElementById("inv-subtotal").value = "";
+            calcTotal();
+            openModal("createInvModal");
+        }
+
+        function openPaymentModal(invId, amount) {
+            document.getElementById("pay-inv-id").value = invId;
+            document.getElementById("pay-amount-display").innerText = "₹" + amount.toFixed(2);
+            openModal("payModal");
+        }
+
+        function openPrintInvoice(id) {
+            const inv = invoicesList.find(x => x.id === id);
+            if (!inv) return;
+
+            const payments = inv.payments || [];
+            const slip = document.getElementById("print-invoice-content");
+            slip.innerHTML = `
+                <div class="invoice-receipt">
+                    <div class="inv-head">
+                        <div>
+                            <h2 style="color:#1a56db; font-size:22px; font-weight:800; margin-bottom:2px;">MEDICARE HOSPITAL</h2>
+                            <p style="font-size:12px; color:#64748b;">GSTIN: 29AABCU9603R1ZM • Multispecialty Care Center</p>
+                        </div>
+                        <div style="text-align:right;">
+                            <span class="badge-status badge-${inv.payment_status.toLowerCase()}" style="font-size:13px;">${inv.payment_status.toUpperCase()}</span>
+                            <div style="font-size:12px; color:#64748b; margin-top:6px;">Invoice #: <strong>INV-${inv.id}</strong></div>
+                            <div style="font-size:12px; color:#64748b;">Date: ${inv.created_at}</div>
+                        </div>
+                    </div>
+
+                    <div style="background:#f8fafc; padding:12px 16px; border-radius:8px; margin-bottom:20px; font-size:13px; display:flex; justify-content:space-between;">
+                        <div>
+                            <strong>Billed To:</strong><br>
+                            ${inv.patient_name}<br>
+                            Code: ${inv.patient_code} • Ph: ${inv.patient_phone}
+                        </div>
+                        <div style="text-align:right;">
+                            <strong>Department / Consultant:</strong><br>
+                            ${inv.doctor_name || 'Hospital Standard Care'}
+                        </div>
+                    </div>
+
+                    <table style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:14px;">
+                        <thead>
+                            <tr style="border-bottom:2px solid #e2e8f0; text-align:left; color:#475569;">
+                                <th style="padding:8px 0;">Item & Service Description</th>
+                                <th style="padding:8px 0; text-align:right;">Amount (INR ₹)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr style="border-bottom:1px solid #f1f5f9;">
+                                <td style="padding:12px 0;">Clinical Outpatient Services / Medical Consultation</td>
+                                <td style="padding:12px 0; text-align:right;">₹${inv.subtotal.toFixed(2)}</td>
+                            </tr>
+                            <tr style="border-bottom:1px solid #f1f5f9; color:#64748b;">
+                                <td style="padding:8px 0;">GST (Goods & Services Tax @ 5%)</td>
+                                <td style="padding:8px 0; text-align:right;">₹${inv.tax.toFixed(2)}</td>
+                            </tr>
+                            <tr style="font-size:16px; font-weight:800; color:#0f172a;">
+                                <td style="padding:12px 0;">Total Amount Due</td>
+                                <td style="padding:12px 0; text-align:right; color:#1a56db;">₹${inv.total_amount.toFixed(2)}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    ${payments.length > 0 ? `
+                        <div style="background:#eff6ff; padding:12px; border-radius:8px; font-size:12px; margin-bottom:25px;">
+                            <strong style="color:#1e40af;">Payment Acknowledgements:</strong><br>
+                            ${payments.map(p => `• Reference: ${p.reference_number} | Mode: ${p.payment_method} | Paid: ₹${p.amount.toFixed(2)} on ${p.payment_date}`).join("<br>")}
+                        </div>
+                    ` : ''}
+
+                    <div style="display:flex; justify-content:space-between; align-items:flex-end; border-top:1px dashed #cbd5e1; padding-top:15px;">
+                        <small style="color:#94a3b8; font-size:11px;">Computer-generated tax receipt. Valid without physical stamp.</small>
+                        <div style="text-align:center;">
+                            <div style="font-family:cursive; font-size:16px; color:#1e3a8a; border-bottom:1px solid #000; padding:0 15px;">Accounts Dept</div>
+                            <small style="font-size:10px; color:#64748b;">Authorized Signatory</small>
+                        </div>
+                    </div>
+                </div>
+            `;
+            openModal("invPrintModal");
+        }
+
+        document.getElementById("createInvForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const patientId = parseInt(document.getElementById("inv-patient-id").value);
+            const subtotal = parseFloat(document.getElementById("inv-subtotal").value);
+
+            try {
+                await API.post("/invoices", { patient_id: patientId, subtotal: subtotal });
+                showToast("Invoice generated successfully!", "success");
+                closeModal("createInvModal");
+                loadInvoices();
+            } catch (err) {
+                showToast(err.message, "error");
+            }
+        });
+
+        document.getElementById("payForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const invId = parseInt(document.getElementById("pay-inv-id").value);
+            const amtStr = document.getElementById("pay-amount-display").innerText.replace("₹", "");
+            const amount = parseFloat(amtStr);
+            const method = document.getElementById("pay-method").value;
+
+            try {
+                const res = await API.post("/payments", {
+                    invoice_id: invId,
+                    amount: amount,
+                    payment_method: method
+                });
+                showToast("Payment recorded! Ref: " + res.data.reference_number, "success");
+                closeModal("payModal");
+                loadInvoices();
+            } catch (err) {
+                showToast(err.message, "error");
+            }
+        });
+
+        initBilling();
+    </script>
+</body>
+</html>
+

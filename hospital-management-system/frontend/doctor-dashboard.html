@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Doctor Portal - Medicare HMS</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <div id="sidebar-container"></div>
+
+        <div class="main-wrapper">
+            <header class="top-navbar">
+                <div class="navbar-title">Doctor Consultation Dashboard</div>
+                <div class="navbar-actions">
+                    <span id="doc-badge" class="badge-status badge-confirmed">Doctor On Duty</span>
+                </div>
+            </header>
+
+            <main class="content-body">
+                <!-- Doctor Profile Banner -->
+                <div class="custom-card" style="background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 100%); color: white;">
+                    <div style="padding: 25px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 20px;">
+                        <div style="display: flex; align-items: center; gap: 20px;">
+                            <div style="width: 70px; height: 70px; background: rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 32px;">🩺</div>
+                            <div>
+                                <h2 id="doc-name" style="font-size: 22px; font-weight: 800; margin-bottom: 4px;">Loading Profile...</h2>
+                                <p id="doc-spec" style="color: #bfdbfe; font-size: 14px;">Specialization & Qualifications</p>
+                            </div>
+                        </div>
+                        <div style="text-align: right; background: rgba(255,255,255,0.1); padding: 12px 20px; border-radius: 10px;">
+                            <div style="font-size: 12px; color: #bfdbfe;">Consultation Fee</div>
+                            <div id="doc-fee" style="font-size: 20px; font-weight: 700;">₹--</div>
+                            <div id="doc-hours" style="font-size: 12px; color: #e2e8f0; margin-top: 4px;">Hours: --</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Assigned Appointments Queue -->
+                <div class="custom-card">
+                    <div class="card-header-flex">
+                        <div>
+                            <span class="card-title">Assigned Appointments & Consultations</span>
+                            <p style="font-size: 13px; color: #64748b; margin-top: 2px;">Review patient bookings and record diagnoses</p>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="custom-table">
+                            <thead>
+                                <tr>
+                                    <th>Patient Details</th>
+                                    <th>Date & Time</th>
+                                    <th>Reason for Visit</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="doc-appts-tbody">
+                                <tr><td colspan="5" style="text-align: center; padding: 25px;">Loading consultations...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modal for Adding Clinical EMR & Prescription -->
+    <div id="emrModal" class="modal-overlay">
+        <div class="modal-box" style="max-width: 650px;">
+            <div class="modal-header">
+                <h3>Record Clinical Consultation & Diagnosis</h3>
+                <button class="modal-close" onclick="closeModal('emrModal')">&times;</button>
+            </div>
+            <form id="emrForm">
+                <div class="modal-body">
+                    <input type="hidden" id="emr-patient-id">
+                    <input type="hidden" id="emr-doctor-id">
+                    <input type="hidden" id="emr-appt-id">
+
+                    <div style="background: #f8fafc; padding: 12px; border-radius: 8px; margin-bottom: 16px;">
+                        <span style="font-size: 13px; color: #64748b;">Patient: </span>
+                        <strong id="emr-patient-name">--</strong>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Clinical Diagnosis *</label>
+                        <input type="text" id="emr-diagnosis" class="form-control-custom" placeholder="e.g. Acute Bronchitis, Hypertension Stage 2" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Consultation Notes & Observations</label>
+                        <textarea id="emr-notes" class="form-control-custom" rows="3" placeholder="Symptoms, blood pressure, recommended tests, lifestyle guidance..."></textarea>
+                    </div>
+
+                    <h4 style="font-size: 14px; text-transform: uppercase; color: #64748b; margin: 15px 0 10px; border-top: 1px solid #e2e8f0; padding-top: 10px;">
+                        Prescribed Medication
+                    </h4>
+                    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px;">
+                        <div class="form-group">
+                            <label class="form-label">Medicine Name</label>
+                            <input type="text" id="rx-med-name" class="form-control-custom" placeholder="e.g. Amoxicillin 500mg">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Dosage</label>
+                            <input type="text" id="rx-dosage" class="form-control-custom" placeholder="e.g. 1 Tablet" value="1 Tablet">
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div class="form-group">
+                            <label class="form-label">Frequency</label>
+                            <input type="text" id="rx-freq" class="form-control-custom" placeholder="e.g. Twice daily" value="Twice daily after meals">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Duration</label>
+                            <input type="text" id="rx-dur" class="form-control-custom" placeholder="e.g. 7 Days" value="5 Days">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary-custom" onclick="closeModal('emrModal')">Cancel</button>
+                    <button type="submit" class="btn-primary-custom">Save EMR & Complete Consultation</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        let currentUser = null;
+
+        function closeModal(id) {
+            document.getElementById(id).classList.remove("active");
+        }
+
+        async function initDoctorDashboard() {
+            currentUser = await Auth.checkAuth(["doctor"]);
+            if (!currentUser) return;
+            Auth.renderNavigation("dashboard");
+
+            document.getElementById("doc-name").innerText = currentUser.full_name || currentUser.username;
+            document.getElementById("doc-spec").innerText = `${currentUser.specialization || 'Medical Specialist'} • ${currentUser.qualification || 'MBBS'} (${currentUser.department_name || 'General'})`;
+            document.getElementById("doc-fee").innerText = `₹${(currentUser.consultation_fee || 500).toFixed(2)}`;
+            document.getElementById("doc-hours").innerText = `Hours: ${currentUser.availability || '09:00 - 17:00'}`;
+
+            loadDoctorAppointments();
+        }
+
+        async function loadDoctorAppointments() {
+            try {
+                const res = await API.get("/appointments");
+                const list = res.data || [];
+                const tbody = document.getElementById("doc-appts-tbody");
+
+                if (list.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:30px; color:#64748b;">No appointments scheduled currently.</td></tr>`;
+                    return;
+                }
+
+                tbody.innerHTML = list.map(a => `
+                    <tr>
+                        <td>
+                            <strong>${a.patient_name}</strong><br>
+                            <small style="color:#64748b;">Code: ${a.patient_code} • Ph: ${a.patient_phone}</small>
+                        </td>
+                        <td>
+                            ${a.appointment_date}<br>
+                            <strong>${a.appointment_time}</strong>
+                        </td>
+                        <td>${a.reason || 'General Consultation'}</td>
+                        <td><span class="badge-status badge-${a.status.toLowerCase()}">${a.status}</span></td>
+                        <td>
+                            ${a.status !== 'Completed' && a.status !== 'Cancelled' ? `
+                                <button class="btn-primary-custom btn-sm-custom" onclick="openEmrModal(${a.id}, ${a.patient_id}, '${a.patient_name.replace(/'/g, "\\'")}')">
+                                    ✍️ Consult & Diagnose
+                                </button>
+                            ` : `
+                                <span style="font-size:12px; color:#64748b;">Completed</span>
+                            `}
+                        </td>
+                    </tr>
+                `).join("");
+            } catch (err) {
+                showToast("Failed to load appointments: " + err.message, "error");
+            }
+        }
+
+        function openEmrModal(apptId, patientId, patientName) {
+            document.getElementById("emr-appt-id").value = apptId;
+            document.getElementById("emr-patient-id").value = patientId;
+            document.getElementById("emr-doctor-id").value = currentUser.doctor_id || 1;
+            document.getElementById("emr-patient-name").innerText = patientName;
+            document.getElementById("emr-diagnosis").value = "";
+            document.getElementById("emr-notes").value = "";
+            document.getElementById("rx-med-name").value = "";
+            document.getElementById("emrModal").classList.add("active");
+        }
+
+        document.getElementById("emrForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const apptId = parseInt(document.getElementById("emr-appt-id").value);
+            const patientId = parseInt(document.getElementById("emr-patient-id").value);
+            const doctorId = parseInt(document.getElementById("emr-doctor-id").value);
+            const diagnosis = document.getElementById("emr-diagnosis").value.trim();
+            const notes = document.getElementById("emr-notes").value.trim();
+            const medName = document.getElementById("rx-med-name").value.trim();
+
+            const payload = {
+                patient_id: patientId,
+                doctor_id: doctorId,
+                appointment_id: apptId,
+                diagnosis: diagnosis,
+                consultation_notes: notes,
+                prescriptions: []
+            };
+
+            if (medName.length > 0) {
+                payload.prescriptions.push({
+                    medicine_name: medName,
+                    dosage: document.getElementById("rx-dosage").value.trim(),
+                    frequency: document.getElementById("rx-freq").value.trim(),
+                    duration: document.getElementById("rx-dur").value.trim(),
+                    instructions: "As directed"
+                });
+            }
+
+            try {
+                await API.post("/medical-records", payload);
+                showToast("Consultation recorded and appointment completed!", "success");
+                closeModal("emrModal");
+                loadDoctorAppointments();
+            } catch (err) {
+                showToast(err.message || "Failed to record consultation.", "error");
+            }
+        });
+
+        initDoctorDashboard();
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hospital Analytics & Reports - Medicare HMS</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <div id="sidebar-container"></div>
+
+        <div class="main-wrapper">
+            <header class="top-navbar">
+                <div class="navbar-title">Hospital Analytics & Financial Reports</div>
+                <div class="navbar-actions">
+                    <button class="btn-secondary-custom btn-sm-custom" onclick="window.print()">🖨️ Export PDF / Print</button>
+                </div>
+            </header>
+
+            <main class="content-body">
+                <!-- Summary Metrics -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-info">
+                            <h3 id="rep-rev">--</h3>
+                            <p>Total Revenue (INR ₹)</p>
+                        </div>
+                        <div class="stat-icon icon-teal">₹</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-info">
+                            <h3 id="rep-recv">--</h3>
+                            <p>Pending Receivables (₹)</p>
+                        </div>
+                        <div class="stat-icon icon-amber">⏳</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-info">
+                            <h3 id="rep-comp">--%</h3>
+                            <p>Appointment Completion Rate</p>
+                        </div>
+                        <div class="stat-icon icon-green">📈</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-info">
+                            <h3 id="rep-appts">--</h3>
+                            <p>Completed Visits</p>
+                        </div>
+                        <div class="stat-icon icon-blue">🩺</div>
+                    </div>
+                </div>
+
+                <!-- Charts Row 1 -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px;">
+                    <div class="custom-card">
+                        <div class="card-header-flex">
+                            <span class="card-title">Revenue by Medical Specialty (₹)</span>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="deptRevChart" height="200"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="custom-card">
+                        <div class="card-header-flex">
+                            <span class="card-title">Payment Collection Channels</span>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="methodChart" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Row 2 -->
+                <div class="custom-card">
+                    <div class="card-header-flex">
+                        <span class="card-title">Recent 7 Days Outpatient Appointment Trend</span>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="dailyTrendChart" height="90"></canvas>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        let deptRevChartInstance = null;
+        let methodChartInstance = null;
+        let trendChartInstance = null;
+
+        async function initReports() {
+            const user = await Auth.checkAuth(["admin", "receptionist"]);
+            if (!user) return;
+            Auth.renderNavigation("reports");
+
+            try {
+                const [dRes, rRes] = await Promise.all([
+                    API.get("/reports/dashboard"),
+                    API.get("/reports/revenue")
+                ]);
+
+                const d = dRes.data;
+                const r = rRes.data;
+
+                document.getElementById("rep-rev").innerText = "₹" + Number(r.total_revenue_collected).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+                document.getElementById("rep-recv").innerText = "₹" + Number(r.total_pending_receivables).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+                document.getElementById("rep-comp").innerText = d.completion_rate.toFixed(1) + "%";
+                document.getElementById("rep-appts").innerText = d.completed_appointments;
+
+                renderRevenueCharts(r, d);
+            } catch (err) {
+                showToast("Failed to load reports: " + err.message, "error");
+            }
+        }
+
+        function renderRevenueCharts(revData, dashData) {
+            // Revenue by Department
+            const deptCtx = document.getElementById("deptRevChart").getContext("2d");
+            const deptList = revData.by_department || [];
+            const deptLabels = deptList.map(x => x.department);
+            const deptValues = deptList.map(x => x.revenue);
+
+            if (deptRevChartInstance) deptRevChartInstance.destroy();
+            deptRevChartInstance = new Chart(deptCtx, {
+                type: 'bar',
+                data: {
+                    labels: deptLabels.length ? deptLabels : ['Cardiology', 'Neurology'],
+                    datasets: [{
+                        label: 'Revenue (₹)',
+                        data: deptValues.length ? deptValues : [0, 0],
+                        backgroundColor: '#1a56db',
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+
+            // Payment Methods Doughnut
+            const methCtx = document.getElementById("methodChart").getContext("2d");
+            const methList = revData.by_payment_method || [];
+            const methLabels = methList.map(x => x.method);
+            const methValues = methList.map(x => x.amount);
+
+            if (methodChartInstance) methodChartInstance.destroy();
+            methodChartInstance = new Chart(methCtx, {
+                type: 'pie',
+                data: {
+                    labels: methLabels.length ? methLabels : ['UPI', 'Card', 'Cash'],
+                    datasets: [{
+                        data: methValues.length ? methValues : [1, 1, 1],
+                        backgroundColor: ['#0d9488', '#1a56db', '#d97706', '#9333ea', '#057a55']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { position: 'bottom' } }
+                }
+            });
+
+            // 7 Days Trend
+            const trendCtx = document.getElementById("dailyTrendChart").getContext("2d");
+            const trends = dashData.appointment_trends || [];
+            const tLabels = trends.map(t => t.date).reverse();
+            const tValues = trends.map(t => t.count).reverse();
+
+            if (trendChartInstance) trendChartInstance.destroy();
+            trendChartInstance = new Chart(trendCtx, {
+                type: 'line',
+                data: {
+                    labels: tLabels.length ? tLabels : ['Today'],
+                    datasets: [{
+                        label: 'Daily Patient Volume',
+                        data: tValues.length ? tValues : [0],
+                        borderColor: '#0d9488',
+                        backgroundColor: 'rgba(13, 148, 136, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: { beginAtZero: true, ticks: { stepSize: 1 } }
+                    }
+                }
+            });
+        }
+
+        initReports();
+    </script>
+</body>
+</html>
+

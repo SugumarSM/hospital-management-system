@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patients Directory - Medicare HMS</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <div id="sidebar-container"></div>
+
+        <div class="main-wrapper">
+            <header class="top-navbar">
+                <div class="navbar-title">Patient Records Management</div>
+                <div class="navbar-actions">
+                    <button id="add-patient-btn" class="btn-primary-custom btn-sm-custom" onclick="openModal('patientModal')">+ New Patient</button>
+                </div>
+            </header>
+
+            <main class="content-body">
+                <div class="custom-card">
+                    <div class="card-header-flex">
+                        <div>
+                            <span class="card-title">Registered Hospital Patients</span>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <input type="text" id="patient-search" class="form-control-custom" style="width: 250px; font-size: 13px;" placeholder="Search by name, phone or code..." oninput="handleSearch()">
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="custom-table">
+                            <thead>
+                                <tr>
+                                    <th>Patient Code</th>
+                                    <th>Full Name</th>
+                                    <th>Gender / DOB</th>
+                                    <th>Blood Group</th>
+                                    <th>Phone & Emergency Contact</th>
+                                    <th>Registered Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="patients-tbody">
+                                <tr><td colspan="7" style="text-align: center; padding: 25px;">Loading patients...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Patient Modal (Create / Edit) -->
+    <div id="patientModal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3 id="modal-title">Register New Patient</h3>
+                <button class="modal-close" onclick="closeModal('patientModal')">&times;</button>
+            </div>
+            <form id="patientForm">
+                <div class="modal-body">
+                    <input type="hidden" id="edit-id">
+                    <div class="form-group">
+                        <label class="form-label">Full Name *</label>
+                        <input type="text" id="p-form-name" class="form-control-custom" placeholder="e.g. Meera Patel" required>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div class="form-group">
+                            <label class="form-label">Date of Birth *</label>
+                            <input type="date" id="p-form-dob" class="form-control-custom" required value="1990-01-01">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Gender</label>
+                            <select id="p-form-gender" class="form-control-custom">
+                                <option value="Male">Male</option>
+                                <option value="Female">Female</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div class="form-group">
+                            <label class="form-label">Phone Number *</label>
+                            <input type="tel" id="p-form-phone" class="form-control-custom" placeholder="9876543210" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Blood Group</label>
+                            <select id="p-form-blood" class="form-control-custom">
+                                <option value="A+">A+</option>
+                                <option value="A-">A-</option>
+                                <option value="B+">B+</option>
+                                <option value="B-">B-</option>
+                                <option value="O+" selected>O+</option>
+                                <option value="O-">O-</option>
+                                <option value="AB+">AB+</option>
+                                <option value="AB-">AB-</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Residential Address</label>
+                        <input type="text" id="p-form-address" class="form-control-custom" placeholder="Street, City, Pin">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Emergency Contact Name & Phone</label>
+                        <input type="text" id="p-form-emg" class="form-control-custom" placeholder="e.g. Ramesh Patel (+91 9876543211)">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary-custom" onclick="closeModal('patientModal')">Cancel</button>
+                    <button type="submit" class="btn-primary-custom" id="save-patient-btn">Save Patient</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Patient Details & Medical History Modal -->
+    <div id="detailsModal" class="modal-overlay">
+        <div class="modal-box" style="max-width: 700px;">
+            <div class="modal-header">
+                <h3>Patient Electronic Medical File</h3>
+                <button class="modal-close" onclick="closeModal('detailsModal')">&times;</button>
+            </div>
+            <div class="modal-body" id="details-body">
+                <p>Loading patient history...</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary-custom" onclick="closeModal('detailsModal')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        let patientsList = [];
+        let currentUser = null;
+
+        function openModal(id) { document.getElementById(id).classList.add("active"); }
+        function closeModal(id) { document.getElementById(id).classList.remove("active"); }
+
+        async function initPatients() {
+            currentUser = await Auth.checkAuth(["admin", "doctor", "receptionist", "patient"]);
+            if (!currentUser) return;
+            Auth.renderNavigation("patients");
+
+            if (currentUser.role === "patient") {
+                document.getElementById("add-patient-btn").style.display = "none";
+            }
+
+            loadPatients();
+        }
+
+        async function loadPatients(search = "") {
+            try {
+                const endpoint = search ? `/patients?search=${encodeURIComponent(search)}` : "/patients";
+                const res = await API.get(endpoint);
+                patientsList = res.data || [];
+                renderPatientsTable(patientsList);
+            } catch (err) {
+                showToast("Failed to load patients: " + err.message, "error");
+            }
+        }
+
+        function renderPatientsTable(list) {
+            const tbody = document.getElementById("patients-tbody");
+            if (list.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 25px; color:#64748b;">No patients found.</td></tr>`;
+                return;
+            }
+            tbody.innerHTML = list.map(p => `
+                <tr>
+                    <td><span class="badge-status badge-confirmed">${p.patient_code}</span></td>
+                    <td><strong>${p.full_name}</strong></td>
+                    <td>${p.gender} • ${p.date_of_birth}</td>
+                    <td><strong>${p.blood_group || 'N/A'}</strong></td>
+                    <td>
+                        Ph: ${p.phone}<br>
+                        <small style="color:#64748b;">Emg: ${p.emergency_contact || 'N/A'}</small>
+                    </td>
+                    <td><small style="color:#64748b;">${p.created_at ? p.created_at.split(' ')[0] : 'N/A'}</small></td>
+                    <td>
+                        <button class="btn-secondary-custom btn-sm-custom" onclick="viewPatient(${p.id})">History</button>
+                        ${currentUser.role === 'admin' || currentUser.role === 'receptionist' ? `
+                            <button class="btn-primary-custom btn-sm-custom" onclick="editPatient(${p.id})">Edit</button>
+                        ` : ''}
+                    </td>
+                </tr>
+            `).join("");
+        }
+
+        let searchTimeout;
+        function handleSearch() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                const q = document.getElementById("patient-search").value.trim();
+                loadPatients(q);
+            }, 300);
+        }
+
+        async function viewPatient(id) {
+            openModal("detailsModal");
+            const body = document.getElementById("details-body");
+            body.innerHTML = "<p>Loading history from database...</p>";
+
+            try {
+                const res = await API.get(`/patients?id=${id}`);
+                const p = res.data;
+                const appts = p.appointments || [];
+
+                body.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; border-bottom:1px solid #e2e8f0; padding-bottom:15px; margin-bottom:15px;">
+                        <div>
+                            <h3 style="color:#0f172a;">${p.full_name}</h3>
+                            <span class="badge-status badge-confirmed">${p.patient_code}</span> •
+                            <span>${p.gender}, DOB: ${p.date_of_birth} (${p.blood_group || 'O+'})</span>
+                        </div>
+                        <div style="text-align:right; font-size:13px; color:#64748b;">
+                            <div>Phone: ${p.phone}</div>
+                            <div>Address: ${p.address}</div>
+                        </div>
+                    </div>
+
+                    <h4 style="font-size:14px; text-transform:uppercase; color:#64748b; margin-bottom:10px;">Recent Appointments & Consultations</h4>
+                    ${appts.length === 0 ? '<p style="color:#64748b; font-size:13px;">No consultation history recorded yet.</p>' : `
+                        <div class="table-responsive">
+                            <table class="custom-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date & Slot</th>
+                                        <th>Doctor</th>
+                                        <th>Reason</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${appts.map(a => `
+                                        <tr>
+                                            <td>${a.appointment_date} ${a.appointment_time}</td>
+                                            <td>${a.doctor_name}</td>
+                                            <td>${a.reason || 'Consultation'}</td>
+                                            <td><span class="badge-status badge-${a.status.toLowerCase()}">${a.status}</span></td>
+                                        </tr>
+                                    `).join("")}
+                                </tbody>
+                            </table>
+                        </div>
+                    `}
+                `;
+            } catch (err) {
+                body.innerHTML = `<p style="color:#dc2626;">Error: ${err.message}</p>`;
+            }
+        }
+
+        function editPatient(id) {
+            const p = patientsList.find(x => x.id === id);
+            if (!p) return;
+
+            document.getElementById("modal-title").innerText = "Edit Patient Details";
+            document.getElementById("edit-id").value = p.id;
+            document.getElementById("p-form-name").value = p.full_name;
+            document.getElementById("p-form-dob").value = p.date_of_birth;
+            document.getElementById("p-form-gender").value = p.gender;
+            document.getElementById("p-form-phone").value = p.phone;
+            document.getElementById("p-form-blood").value = p.blood_group || "O+";
+            document.getElementById("p-form-address").value = p.address || "";
+            document.getElementById("p-form-emg").value = p.emergency_contact || "";
+
+            openModal("patientModal");
+        }
+
+        document.getElementById("patientForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const editId = document.getElementById("edit-id").value;
+
+            const payload = {
+                full_name: document.getElementById("p-form-name").value.trim(),
+                date_of_birth: document.getElementById("p-form-dob").value,
+                gender: document.getElementById("p-form-gender").value,
+                phone: document.getElementById("p-form-phone").value.trim(),
+                blood_group: document.getElementById("p-form-blood").value,
+                address: document.getElementById("p-form-address").value.trim() || "Local",
+                emergency_contact: document.getElementById("p-form-emg").value.trim() || "Not provided"
+            };
+
+            try {
+                if (editId) {
+                    payload.id = parseInt(editId);
+                    await API.put("/patients", payload);
+                    showToast("Patient record updated!", "success");
+                } else {
+                    await API.post("/patients", payload);
+                    showToast("New patient registered successfully!", "success");
+                }
+                closeModal("patientModal");
+                loadPatients();
+            } catch (err) {
+                showToast(err.message, "error");
+            }
+        });
+
+        initPatients();
+    </script>
+</body>
+</html>
+

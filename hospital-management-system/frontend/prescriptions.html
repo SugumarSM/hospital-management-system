@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prescriptions - Medicare HMS</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .rx-slip {
+            background: white;
+            padding: 30px;
+            border: 2px solid #cbd5e1;
+            border-radius: 12px;
+            max-width: 650px;
+            margin: 0 auto;
+        }
+        .rx-slip-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #1a56db;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div id="sidebar-container"></div>
+
+        <div class="main-wrapper">
+            <header class="top-navbar">
+                <div class="navbar-title">Pharmacy Prescriptions</div>
+                <div class="navbar-actions">
+                    <button id="add-rx-btn" class="btn-primary-custom btn-sm-custom" onclick="openModal('rxModal')">+ Write Prescription</button>
+                </div>
+            </header>
+
+            <main class="content-body">
+                <div class="custom-card">
+                    <div class="card-header-flex">
+                        <div>
+                            <span class="card-title">Medication Prescriptions Directory</span>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="custom-table">
+                            <thead>
+                                <tr>
+                                    <th>Rx #</th>
+                                    <th>Patient</th>
+                                    <th>Medicine Name</th>
+                                    <th>Dosage & Frequency</th>
+                                    <th>Duration</th>
+                                    <th>Instructions</th>
+                                    <th>Prescribing Doctor</th>
+                                    <th>Print</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rx-tbody">
+                                <tr><td colspan="8" style="text-align: center; padding: 25px;">Loading prescriptions...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Print Modal -->
+    <div id="printModal" class="modal-overlay">
+        <div class="modal-box" style="max-width: 680px;">
+            <div class="modal-header">
+                <h3>Clinical Prescription Slip</h3>
+                <button class="modal-close" onclick="closeModal('printModal')">&times;</button>
+            </div>
+            <div class="modal-body" id="print-slip-content">
+                <!-- Rendered dynamically -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary-custom" onclick="closeModal('printModal')">Close</button>
+                <button type="button" class="btn-primary-custom" onclick="window.print()">🖨️ Print Prescription</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Write Prescription Modal -->
+    <div id="rxModal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3>Write Clinical Prescription</h3>
+                <button class="modal-close" onclick="closeModal('rxModal')">&times;</button>
+            </div>
+            <form id="rxForm">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="form-label">Patient *</label>
+                        <select id="rx-p-id" class="form-control-custom" required>
+                            <option value="">Select Patient</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="rx-doc-group">
+                        <label class="form-label">Attending Doctor *</label>
+                        <select id="rx-d-id" class="form-control-custom" required>
+                            <option value="">Select Doctor</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Medicine Name *</label>
+                        <input type="text" id="rx-form-med" class="form-control-custom" placeholder="e.g. Paracetamol 500mg, Amoxicillin" required>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div class="form-group">
+                            <label class="form-label">Dosage *</label>
+                            <input type="text" id="rx-form-dose" class="form-control-custom" placeholder="e.g. 1 Tablet" value="1 Tablet" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Frequency *</label>
+                            <input type="text" id="rx-form-freq" class="form-control-custom" placeholder="e.g. Twice daily" value="Twice daily after food" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Duration *</label>
+                        <input type="text" id="rx-form-dur" class="form-control-custom" placeholder="e.g. 5 Days, 1 Month" value="7 Days" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Special Instructions</label>
+                        <input type="text" id="rx-form-inst" class="form-control-custom" placeholder="e.g. Take with warm water, avoid milk" value="Take after food">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary-custom" onclick="closeModal('rxModal')">Cancel</button>
+                    <button type="submit" class="btn-primary-custom">Issue Prescription</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        let currentUser = null;
+        let rxList = [];
+
+        function openModal(id) { document.getElementById(id).classList.add("active"); }
+        function closeModal(id) { document.getElementById(id).classList.remove("active"); }
+
+        async function initRx() {
+            currentUser = await Auth.checkAuth(["admin", "doctor", "receptionist", "patient"]);
+            if (!currentUser) return;
+            Auth.renderNavigation("prescriptions");
+
+            if (currentUser.role !== "admin" && currentUser.role !== "doctor") {
+                document.getElementById("add-rx-btn").style.display = "none";
+            }
+
+            await loadPrescriptions();
+            if (currentUser.role === "admin" || currentUser.role === "doctor") {
+                await loadDropdowns();
+            }
+        }
+
+        async function loadDropdowns() {
+            try {
+                const [pRes, dRes] = await Promise.all([
+                    API.get("/patients"),
+                    API.get("/doctors?status=active")
+                ]);
+
+                const pSel = document.getElementById("rx-p-id");
+                pSel.innerHTML = '<option value="">Select Patient</option>' + (pRes.data || []).map(p => `
+                    <option value="${p.id}">${p.full_name} (${p.patient_code})</option>
+                `).join("");
+
+                const dSel = document.getElementById("rx-d-id");
+                dSel.innerHTML = '<option value="">Select Doctor</option>' + (dRes.data || []).map(d => `
+                    <option value="${d.id}">${d.full_name} (${d.department_name})</option>
+                `).join("");
+
+                if (currentUser.role === "doctor" && currentUser.doctor_id) {
+                    dSel.value = currentUser.doctor_id;
+                    document.getElementById("rx-doc-group").style.display = "none";
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function loadPrescriptions() {
+            try {
+                const res = await API.get("/prescriptions");
+                rxList = res.data || [];
+                renderRxTable(rxList);
+            } catch (err) {
+                showToast("Failed to load prescriptions: " + err.message, "error");
+            }
+        }
+
+        function renderRxTable(list) {
+            const tbody = document.getElementById("rx-tbody");
+            if (list.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 25px; color:#64748b;">No prescriptions found.</td></tr>`;
+                return;
+            }
+            tbody.innerHTML = list.map(rx => `
+                <tr>
+                    <td>#${rx.id}</td>
+                    <td>
+                        <strong>${rx.patient_name}</strong><br>
+                        <small style="color:#64748b;">${rx.patient_code}</small>
+                    </td>
+                    <td><strong>💊 ${rx.medicine_name}</strong></td>
+                    <td>${rx.dosage}<br><small style="color:#64748b;">${rx.frequency}</small></td>
+                    <td>${rx.duration}</td>
+                    <td>${rx.instructions || 'As advised'}</td>
+                    <td>${rx.doctor_name}</td>
+                    <td>
+                        <button class="btn-secondary-custom btn-sm-custom" onclick="openPrintModal(${rx.id})">🖨️ View Slip</button>
+                    </td>
+                </tr>
+            `).join("");
+        }
+
+        function openPrintModal(rxId) {
+            const rx = rxList.find(x => x.id === rxId);
+            if (!rx) return;
+
+            const slip = document.getElementById("print-slip-content");
+            slip.innerHTML = `
+                <div class="rx-slip">
+                    <div class="rx-slip-header">
+                        <div>
+                            <h2 style="color:#1a56db; font-size:20px; font-weight:800;">MEDICARE MULTISPECIALTY HOSPITAL</h2>
+                            <p style="font-size:12px; color:#64748b;">Healthcare Excellence • Digital Prescription Slip</p>
+                        </div>
+                        <div style="text-align:right;">
+                            <span class="badge-status badge-confirmed">Rx Slip #${rx.id}</span>
+                            <div style="font-size:12px; color:#64748b; margin-top:4px;">Date: ${rx.created_at}</div>
+                        </div>
+                    </div>
+
+                    <div style="background:#f8fafc; padding:12px; border-radius:8px; margin-bottom:20px; font-size:13px; display:flex; justify-content:space-between;">
+                        <div>
+                            <strong>Patient:</strong> ${rx.patient_name}<br>
+                            <strong>Patient Code:</strong> ${rx.patient_code}
+                        </div>
+                        <div style="text-align:right;">
+                            <strong>Doctor:</strong> ${rx.doctor_name}<br>
+                            <strong>Department:</strong> ${rx.department_name}
+                        </div>
+                    </div>
+
+                    <div style="font-size:32px; font-family:serif; color:#1a56db; font-weight:bold; margin-bottom:10px;">℞</div>
+
+                    <table style="width:100%; border-collapse:collapse; margin-bottom:25px; font-size:14px;">
+                        <thead>
+                            <tr style="border-bottom:2px solid #e2e8f0; text-align:left;">
+                                <th style="padding:8px 0;">Prescribed Medicine</th>
+                                <th style="padding:8px 0;">Dosage</th>
+                                <th style="padding:8px 0;">Frequency</th>
+                                <th style="padding:8px 0;">Duration</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr style="border-bottom:1px solid #f1f5f9;">
+                                <td style="padding:12px 0;"><strong>${rx.medicine_name}</strong></td>
+                                <td style="padding:12px 0;">${rx.dosage}</td>
+                                <td style="padding:12px 0;">${rx.frequency}</td>
+                                <td style="padding:12px 0;">${rx.duration}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div style="background:#eff6ff; padding:10px; border-radius:6px; font-size:13px; color:#1e40af; margin-bottom:30px;">
+                        <strong>Special Instructions:</strong> ${rx.instructions || 'Take medications as directed.'}
+                    </div>
+
+                    <div style="display:flex; justify-content:space-between; align-items:flex-end; border-top:1px dashed #cbd5e1; padding-top:20px;">
+                        <div style="font-size:11px; color:#94a3b8;">
+                            Medicare Hospital Digital Health System<br>
+                            Signed securely by authorized medical doctor.
+                        </div>
+                        <div style="text-align:center;">
+                            <div style="font-family:cursive; font-size:18px; color:#1e3a8a; border-bottom:1px solid #000; padding:0 20px;">
+                                ${rx.doctor_name}
+                            </div>
+                            <small style="font-size:11px; color:#64748b;">Medical Practitioner Signature</small>
+                        </div>
+                    </div>
+                </div>
+            `;
+            openModal("printModal");
+        }
+
+        document.getElementById("rxForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const patientId = parseInt(document.getElementById("rx-p-id").value);
+            const doctorId = currentUser.role === "doctor" && currentUser.doctor_id ?
+                currentUser.doctor_id : parseInt(document.getElementById("rx-d-id").value);
+
+            const payload = {
+                patient_id: patientId,
+                doctor_id: doctorId,
+                medicine_name: document.getElementById("rx-form-med").value.trim(),
+                dosage: document.getElementById("rx-form-dose").value.trim(),
+                frequency: document.getElementById("rx-form-freq").value.trim(),
+                duration: document.getElementById("rx-form-dur").value.trim(),
+                instructions: document.getElementById("rx-form-inst").value.trim()
+            };
+
+            try {
+                await API.post("/prescriptions", payload);
+                showToast("Prescription issued successfully!", "success");
+                closeModal("rxModal");
+                loadPrescriptions();
+            } catch (err) {
+                showToast(err.message, "error");
+            }
+        });
+
+        initRx();
+    </script>
+</body>
+</html>
+
